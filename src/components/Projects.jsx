@@ -31,6 +31,7 @@ import {
   ArrowRight,
   MousePointer,
   DollarSign,
+  XCircle,
 } from 'lucide-react';
 
 const TABS = {
@@ -54,7 +55,14 @@ const projectStatuses = [
   { value: 'completed', label: 'Concluído' },
 ];
 
-// Adicione as funções aqui, antes do initialProjects
+const documentTypes = [
+  { value: 'Projeto', label: 'Projeto' },
+  { value: 'Licenças', label: 'Licenças' },
+  { value: 'Relatórios', label: 'Relatórios' },
+  { value: 'Contratos', label: 'Contratos' },
+  { value: 'Outros', label: 'Outros' },
+];
+
 const getStatusColor = (status) => {
   const colors = {
     planning: 'bg-blue-100 text-blue-800',
@@ -66,10 +74,10 @@ const getStatusColor = (status) => {
 };
 
 const getStatusText = (status) => {
-  return projectStatuses.find(s => s.value === status)?.label || status;
+  return projectStatuses.find((s) => s.value === status)?.label || status;
 };
 
-// Mock data inicial com os dois empreendimentos
+// Dados iniciais
 const initialProjects = [
   {
     id: 1,
@@ -137,16 +145,39 @@ const initialProjects = [
       {
         type: 'Projeto',
         items: [
-          { name: 'Projeto Arquitetônico', status: 'approved', expiryDate: null },
-          { name: 'Projeto Estrutural', status: 'approved', expiryDate: null },
-          { name: 'Projeto Hidráulico', status: 'pending', expiryDate: null },
+          {
+            id: 1,
+            name: 'Projeto Arquitetônico',
+            status: 'approved',
+            expiryDate: null,
+            fileData: '/api/placeholder/doc1.pdf',
+          },
+          {
+            id: 2,
+            name: 'Projeto Estrutural',
+            status: 'approved',
+            expiryDate: null,
+            fileData: '/api/placeholder/doc2.pdf',
+          },
         ],
       },
       {
         type: 'Licenças',
         items: [
-          { name: 'Alvará de Construção', status: 'approved', expiryDate: '2025-01-15' },
-          { name: 'Licença Ambiental', status: 'approved', expiryDate: '2024-12-31' },
+          {
+            id: 3,
+            name: 'Alvará de Construção',
+            status: 'approved',
+            expiryDate: '2025-01-15',
+            fileData: '/api/placeholder/doc3.pdf',
+          },
+          {
+            id: 4,
+            name: 'Licença Ambiental',
+            status: 'approved',
+            expiryDate: '2024-12-31',
+            fileData: '/api/placeholder/doc4.pdf',
+          },
         ],
       },
     ],
@@ -203,15 +234,39 @@ const initialProjects = [
       {
         type: 'Projeto',
         items: [
-          { name: 'Projeto Arquitetônico', status: 'approved', expiryDate: null },
-          { name: 'Projeto Estrutural', status: 'pending', expiryDate: null },
+          {
+            id: 5,
+            name: 'Projeto Arquitetônico',
+            status: 'approved',
+            expiryDate: null,
+            fileData: '/api/placeholder/doc5.pdf',
+          },
+          {
+            id: 6,
+            name: 'Projeto Estrutural',
+            status: 'pending',
+            expiryDate: null,
+            fileData: '/api/placeholder/doc6.pdf',
+          },
         ],
       },
       {
         type: 'Licenças',
         items: [
-          { name: 'Alvará de Construção', status: 'pending', expiryDate: null },
-          { name: 'Licença Ambiental', status: 'approved', expiryDate: '2024-12-31' },
+          {
+            id: 7,
+            name: 'Alvará de Construção',
+            status: 'pending',
+            expiryDate: null,
+            fileData: '/api/placeholder/doc7.pdf',
+          },
+          {
+            id: 8,
+            name: 'Licença Ambiental',
+            status: 'approved',
+            expiryDate: '2024-12-31',
+            fileData: '/api/placeholder/doc8.pdf',
+          },
         ],
       },
     ],
@@ -219,11 +274,16 @@ const initialProjects = [
 ];
 
 export default function Projects({ data }) {
-  const [projects, setProjects] = useState(initialProjects);
+  const [projects, setProjects] = useState(() => {
+    const savedProjects = localStorage.getItem('projects');
+    return savedProjects ? JSON.parse(savedProjects) : initialProjects;
+  });
   const [activeTab, setActiveTab] = useState(TABS.OVERVIEW);
   const [selectedProject, setSelectedProject] = useState(null);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [showDocumentUpload, setShowDocumentUpload] = useState(false);
+  const [showTimelineForm, setShowTimelineForm] = useState(false);
   const [selectedTool, setSelectedTool] = useState('pen');
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentImage, setCurrentImage] = useState(null);
@@ -253,6 +313,34 @@ export default function Projects({ data }) {
     date: new Date().toISOString().split('T')[0],
   });
 
+  const [newDocument, setNewDocument] = useState({
+    type: '',
+    name: '',
+    status: 'pending',
+    expiryDate: '',
+    file: null,
+  });
+
+  const [newTimeline, setNewTimeline] = useState({
+    phase: '',
+    startDate: '',
+    endDate: '',
+    progress: 0,
+    milestones: [],
+    tasks: [],
+  });
+
+  const [newMilestone, setNewMilestone] = useState({
+    date: '',
+    description: '',
+  });
+
+  const [newTask, setNewTask] = useState({
+    name: '',
+    status: 'pending',
+    progress: 0,
+  });
+
   useEffect(() => {
     if (canvasRef.current) {
       const canvas = canvasRef.current;
@@ -270,6 +358,10 @@ export default function Projects({ data }) {
       }
     }
   }, [currentImage, currentColor, currentWidth]);
+
+  useEffect(() => {
+    localStorage.setItem('projects', JSON.stringify(projects));
+  }, [projects]);
 
   const handlePhotoSelect = (e) => {
     const file = e.target.files[0];
@@ -293,7 +385,6 @@ export default function Projects({ data }) {
     }
   };
 
-    // Adicione após as declarações dos estados (useState)
   const handleProjectSelect = (project) => {
     setSelectedProject(project);
     setActiveTab(TABS.OVERVIEW);
@@ -310,7 +401,7 @@ export default function Projects({ data }) {
 
     const { offsetX, offsetY } = nativeEvent;
     const context = contextRef.current;
-    
+
     if (selectedTool === 'pen') {
       context.beginPath();
       context.moveTo(lastPointRef.current.x, lastPointRef.current.y);
@@ -330,7 +421,7 @@ export default function Projects({ data }) {
   const drawArrow = (context, fromX, fromY, toX, toY) => {
     const headLength = 15;
     const angle = Math.atan2(toY - fromY, toX - fromX);
-    
+
     context.beginPath();
     context.moveTo(fromX, fromY);
     context.lineTo(toX, toY);
@@ -366,15 +457,15 @@ export default function Projects({ data }) {
         date: newPhoto.date,
       };
 
-      setProjects(prevProjects => 
-        prevProjects.map(p => 
+      setProjects((prevProjects) =>
+        prevProjects.map((p) =>
           p.id === selectedProject.id
             ? { ...p, photos: [...p.photos, newPhotoObj] }
             : p
         )
       );
 
-      setSelectedProject(prev => ({
+      setSelectedProject((prev) => ({
         ...prev,
         photos: [...prev.photos, newPhotoObj],
       }));
@@ -389,6 +480,73 @@ export default function Projects({ data }) {
     }
   };
 
+  const handleDocumentUpload = (e) => {
+    e.preventDefault();
+    if (newDocument.file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const newDoc = {
+          id: Date.now(),
+          name: newDocument.name,
+          status: newDocument.status,
+          expiryDate: newDocument.expiryDate || null,
+          fileData: reader.result,
+        };
+
+        const existingCategory = selectedProject.documents.find(
+          (docCategory) => docCategory.type === newDocument.type
+        );
+
+        if (existingCategory) {
+          existingCategory.items.push(newDoc);
+        } else {
+          selectedProject.documents.push({
+            type: newDocument.type,
+            items: [newDoc],
+          });
+        }
+
+        setProjects((prevProjects) =>
+          prevProjects.map((p) =>
+            p.id === selectedProject.id ? selectedProject : p
+          )
+        );
+
+        setShowDocumentUpload(false);
+        setNewDocument({
+          type: '',
+          name: '',
+          status: 'pending',
+          expiryDate: '',
+          file: null,
+        });
+      };
+      reader.readAsDataURL(newDocument.file);
+    }
+  };
+
+  const handleRemoveDocument = (docType, docId) => {
+    const updatedDocuments = selectedProject.documents.map((docCategory) =>
+      docCategory.type === docType
+        ? {
+            ...docCategory,
+            items: docCategory.items.filter((doc) => doc.id !== docId),
+          }
+        : docCategory
+    );
+
+    setSelectedProject((prev) => ({
+      ...prev,
+      documents: updatedDocuments,
+    }));
+
+    setProjects((prevProjects) =>
+      prevProjects.map((p) =>
+        p.id === selectedProject.id ? { ...p, documents: updatedDocuments } : p
+      )
+    );
+  };
+
   const handleProjectSubmit = (e) => {
     e.preventDefault();
     const projectToAdd = {
@@ -400,8 +558,8 @@ export default function Projects({ data }) {
       timeline: [],
       documents: [],
     };
-    
-    setProjects(prev => [...prev, projectToAdd]);
+
+    setProjects((prev) => [...prev, projectToAdd]);
     setShowProjectForm(false);
     setNewProject({
       name: '',
@@ -418,8 +576,76 @@ export default function Projects({ data }) {
     });
   };
 
+  const handleTimelineSubmit = (e) => {
+    e.preventDefault();
+
+    setProjects((prevProjects) =>
+      prevProjects.map((p) =>
+        p.id === selectedProject.id
+          ? { ...p, timeline: [...p.timeline, newTimeline] }
+          : p
+      )
+    );
+
+    setSelectedProject((prev) => ({
+      ...prev,
+      timeline: [...prev.timeline, newTimeline],
+    }));
+
+    setShowTimelineForm(false);
+    setNewTimeline({
+      phase: '',
+      startDate: '',
+      endDate: '',
+      progress: 0,
+      milestones: [],
+      tasks: [],
+    });
+  };
+
+  const handleAddMilestone = () => {
+    setNewTimeline((prev) => ({
+      ...prev,
+      milestones: [...prev.milestones, newMilestone],
+    }));
+    setNewMilestone({ date: '', description: '' });
+  };
+
+  const handleAddTask = () => {
+    setNewTimeline((prev) => ({
+      ...prev,
+      tasks: [...prev.tasks, newTask],
+    }));
+    setNewTask({ name: '', status: 'pending', progress: 0 });
+  };
+
+  const handleRemovePhoto = (photoId) => {
+    const updatedPhotos = selectedProject.photos.filter(
+      (photo) => photo.id !== photoId
+    );
+
+    setSelectedProject((prev) => ({
+      ...prev,
+      photos: updatedPhotos,
+    }));
+
+    setProjects((prevProjects) =>
+      prevProjects.map((p) =>
+        p.id === selectedProject.id ? { ...p, photos: updatedPhotos } : p
+      )
+    );
+  };
+
   const renderTimeline = () => (
     <div className="space-y-6">
+      <Button
+        onClick={() => setShowTimelineForm(true)}
+        className="bg-teal-500 hover:bg-teal-600 text-white"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Nova Fase
+      </Button>
+
       {selectedProject.timeline.map((phase, index) => (
         <Card key={index} className="bg-gradient-to-br from-gray-50 to-gray-100">
           <CardHeader>
@@ -434,7 +660,7 @@ export default function Projects({ data }) {
                 <span>Início: {new Date(phase.startDate).toLocaleDateString()}</span>
                 <span>Término: {new Date(phase.endDate).toLocaleDateString()}</span>
               </div>
-              
+
               <div>
                 <span className="text-sm text-gray-600">Progresso</span>
                 <Progress value={phase.progress} className="mt-1" />
@@ -448,7 +674,9 @@ export default function Projects({ data }) {
                       <Calendar className="h-4 w-4 mr-2 text-blue-500" />
                       <div className="text-sm">
                         <p className="font-medium">{milestone.description}</p>
-                        <p className="text-gray-500">{new Date(milestone.date).toLocaleDateString()}</p>
+                        <p className="text-gray-500">
+                          {new Date(milestone.date).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -459,18 +687,26 @@ export default function Projects({ data }) {
                   {phase.tasks.map((task, idx) => (
                     <div key={idx} className="flex items-center justify-between mb-2">
                       <div className="flex items-center">
-                        <CheckSquare className={`h-4 w-4 mr-2 ${
-                          task.status === 'completed' ? 'text-green-500' :
-                          task.status === 'in_progress' ? 'text-yellow-500' :
-                          'text-gray-400'
-                        }`} />
+                        <CheckSquare
+                          className={`h-4 w-4 mr-2 ${
+                            task.status === 'completed'
+                              ? 'text-green-500'
+                              : task.status === 'in_progress'
+                              ? 'text-yellow-500'
+                              : 'text-gray-400'
+                          }`}
+                        />
                         <span className="text-sm">{task.name}</span>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        task.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          task.status === 'completed'
+                            ? 'bg-green-100 text-green-800'
+                            : task.status === 'in_progress'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
                         {task.progress}%
                       </span>
                     </div>
@@ -481,6 +717,21 @@ export default function Projects({ data }) {
           </CardContent>
         </Card>
       ))}
+
+      {showTimelineForm && (
+        <TimelineForm
+          onSubmit={handleTimelineSubmit}
+          onCancel={() => setShowTimelineForm(false)}
+          newTimeline={newTimeline}
+          setNewTimeline={setNewTimeline}
+          newMilestone={newMilestone}
+          setNewMilestone={setNewMilestone}
+          newTask={newTask}
+          setNewTask={setNewTask}
+          handleAddMilestone={handleAddMilestone}
+          handleAddTask={handleAddTask}
+        />
+      )}
     </div>
   );
 
@@ -493,7 +744,10 @@ export default function Projects({ data }) {
               <FileText className="h-5 w-5 mr-2" />
               Documentação
             </span>
-            <Button className="bg-teal-500 hover:bg-teal-600 text-white">
+            <Button
+              className="bg-teal-500 hover:bg-teal-600 text-white"
+              onClick={() => setShowDocumentUpload(true)}
+            >
               <Upload className="h-4 w-4 mr-2" />
               Novo Documento
             </Button>
@@ -517,25 +771,49 @@ export default function Projects({ data }) {
                     <TableRow key={idx}>
                       <TableCell>{doc.name}</TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          doc.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          doc.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {doc.status === 'approved' ? 'Aprovado' :
-                           doc.status === 'pending' ? 'Pendente' : 'Expirado'}
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            doc.status === 'approved'
+                              ? 'bg-green-100 text-green-800'
+                              : doc.status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {doc.status === 'approved'
+                            ? 'Aprovado'
+                            : doc.status === 'pending'
+                            ? 'Pendente'
+                            : 'Expirado'}
                         </span>
                       </TableCell>
                       <TableCell>
-                        {doc.expiryDate ? new Date(doc.expiryDate).toLocaleDateString() : 'N/A'}
+                        {doc.expiryDate
+                          ? new Date(doc.expiryDate).toLocaleDateString()
+                          : 'N/A'}
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
-                          <Button variant="ghost" size="sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              // Lógica para download
+                              const link = document.createElement('a');
+                              link.href = doc.fileData;
+                              link.download = doc.name;
+                              link.click();
+                            }}
+                          >
                             <Download className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600"
+                            onClick={() => handleRemoveDocument(category.type, doc.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -547,6 +825,15 @@ export default function Projects({ data }) {
           ))}
         </CardContent>
       </Card>
+
+      {showDocumentUpload && (
+        <DocumentForm
+          onSubmit={handleDocumentUpload}
+          onCancel={() => setShowDocumentUpload(false)}
+          newDocument={newDocument}
+          setNewDocument={setNewDocument}
+        />
+      )}
     </div>
   );
 
@@ -587,10 +874,16 @@ export default function Projects({ data }) {
                       </p>
                     </div>
                     <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm">
+                      {/* Botão para editar (se necessário) */}
+                      {/* <Button variant="ghost" size="sm">
                         <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600">
+                      </Button> */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600"
+                        onClick={() => handleRemovePhoto(photo.id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -761,7 +1054,7 @@ export default function Projects({ data }) {
             <Progress value={selectedProject.progress} className="mt-2" />
           </CardContent>
         </Card>
-  
+
         <Card className="bg-green-50">
           <CardContent className="p-4">
             <div className="flex justify-between items-center">
@@ -775,10 +1068,13 @@ export default function Projects({ data }) {
                 <DollarSign className="h-6 w-6 text-green-600" />
               </div>
             </div>
-            <Progress value={(selectedProject.spent / selectedProject.budget) * 100} className="mt-2" />
+            <Progress
+              value={(selectedProject.spent / selectedProject.budget) * 100}
+              className="mt-2"
+            />
           </CardContent>
         </Card>
-  
+
         <Card className="bg-yellow-50">
           <CardContent className="p-4">
             <div className="flex justify-between items-center">
@@ -793,7 +1089,7 @@ export default function Projects({ data }) {
             <Progress value={45} className="mt-2" />
           </CardContent>
         </Card>
-  
+
         <Card className="bg-purple-50">
           <CardContent className="p-4">
             <div className="flex justify-between items-center">
@@ -808,7 +1104,7 @@ export default function Projects({ data }) {
           </CardContent>
         </Card>
       </div>
-  
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -837,7 +1133,7 @@ export default function Projects({ data }) {
             </div>
           </CardContent>
         </Card>
-  
+
         <Card>
           <CardHeader>
             <CardTitle>Timeline</CardTitle>
@@ -860,26 +1156,144 @@ export default function Projects({ data }) {
       </div>
     </div>
   );
-  
-    const renderContent = () => {
-      if (!selectedProject) return null;
-  
-      switch (activeTab) {
-        case TABS.OVERVIEW:
-          return renderOverview();
-        case TABS.TIMELINE:
-          return renderTimeline();
-        case TABS.DOCUMENTS:
-          return renderDocuments();
-        case TABS.PHOTOS:
-          return renderPhotos();
-        default:
-          return null;
-      }
-    };
-  
-    const ProjectForm = ({ onSubmit, onCancel }) => (
-      <Card className="fixed inset-0 z-50 m-auto w-full max-w-2xl h-fit max-h-[90vh] overflow-y-auto bg-white shadow-lg">
+
+  const renderContent = () => {
+    if (!selectedProject) return null;
+
+    switch (activeTab) {
+      case TABS.OVERVIEW:
+        return renderOverview();
+      case TABS.TIMELINE:
+        return renderTimeline();
+      case TABS.DOCUMENTS:
+        return renderDocuments();
+      case TABS.PHOTOS:
+        return renderPhotos();
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-bold text-gray-800">Gerenciamento de Obras</h2>
+        <Button
+          onClick={() => setShowProjectForm(true)}
+          className="bg-teal-500 hover:bg-teal-600 text-white"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          Nova Obra
+        </Button>
+      </div>
+
+      {selectedProject ? (
+        <>
+          <div className="flex items-center space-x-4 mb-6">
+            <Button
+              onClick={() => setSelectedProject(null)}
+              variant="ghost"
+              className="text-gray-600"
+            >
+              ← Voltar
+            </Button>
+            <h3 className="text-2xl font-bold text-gray-800">{selectedProject.name}</h3>
+          </div>
+
+          <div className="mb-6 border-b border-gray-200">
+            <nav className="flex space-x-4">
+              {Object.entries(TABS).map(([key, value]) => (
+                <Button
+                  key={key}
+                  onClick={() => setActiveTab(value)}
+                  className={`px-4 py-2 font-medium rounded-t-lg transition-colors duration-300 ${
+                    activeTab === value
+                      ? 'bg-white text-teal-600 border-b-2 border-teal-500'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {key.charAt(0) + key.slice(1).toLowerCase()}
+                </Button>
+              ))}
+            </nav>
+          </div>
+
+          {renderContent()}
+        </>
+      ) : (
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {projects.map((project) => (
+            <Card
+              key={project.id}
+              className="bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <CardHeader>
+                <CardTitle className="text-xl text-gray-800">{project.name}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Status</p>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        getStatusColor(project.status)
+                      }`}
+                    >
+                      {getStatusText(project.status)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-gray-500">Progresso Geral</p>
+                    <Progress value={project.progress} className="mt-1" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500">Início</p>
+                      <p className="font-medium">
+                        {new Date(project.startDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Término Previsto</p>
+                      <p className="font-medium">
+                        {new Date(project.estimatedEndDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={() => handleProjectSelect(project)}
+                    className="w-full bg-teal-500 hover:bg-teal-600 text-white"
+                  >
+                    Ver Detalhes
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {showProjectForm && (
+        <ProjectForm
+          onSubmit={handleProjectSubmit}
+          onCancel={() => setShowProjectForm(false)}
+          newProject={newProject}
+          setNewProject={setNewProject}
+        />
+      )}
+    </div>
+  );
+}
+
+// Componentes auxiliares
+
+function ProjectForm({ onSubmit, onCancel, newProject, setNewProject }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center">
+      <Card className="w-full max-w-2xl h-fit max-h-[90vh] overflow-y-auto bg-white shadow-lg">
         <CardHeader>
           <CardTitle>Nova Obra</CardTitle>
         </CardHeader>
@@ -891,17 +1305,21 @@ export default function Projects({ data }) {
                 <Input
                   id="name"
                   value={newProject.name}
-                  onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                  onChange={(e) =>
+                    setNewProject({ ...newProject, name: e.target.value })
+                  }
                   required
                 />
               </div>
-  
+
               <div>
                 <Label htmlFor="constructionType">Tipo de Construção</Label>
                 <select
                   id="constructionType"
                   value={newProject.constructionType}
-                  onChange={(e) => setNewProject({ ...newProject, constructionType: e.target.value })}
+                  onChange={(e) =>
+                    setNewProject({ ...newProject, constructionType: e.target.value })
+                  }
                   className="w-full border border-gray-300 rounded px-2 py-1"
                   required
                 >
@@ -913,88 +1331,107 @@ export default function Projects({ data }) {
                   ))}
                 </select>
               </div>
-  
+
               <div>
                 <Label htmlFor="address">Endereço</Label>
                 <Input
                   id="address"
                   value={newProject.address}
-                  onChange={(e) => setNewProject({ ...newProject, address: e.target.value })}
+                  onChange={(e) =>
+                    setNewProject({ ...newProject, address: e.target.value })
+                  }
                   required
                 />
               </div>
-  
+
               <div>
                 <Label htmlFor="responsibleEngineer">Engenheiro Responsável</Label>
                 <Input
                   id="responsibleEngineer"
                   value={newProject.responsibleEngineer}
-                  onChange={(e) => setNewProject({ ...newProject, responsibleEngineer: e.target.value })}
+                  onChange={(e) =>
+                    setNewProject({
+                      ...newProject,
+                      responsibleEngineer: e.target.value,
+                    })
+                  }
                   required
                 />
               </div>
-  
+
               <div>
                 <Label htmlFor="startDate">Data de Início</Label>
                 <Input
                   id="startDate"
                   type="date"
                   value={newProject.startDate}
-                  onChange={(e) => setNewProject({ ...newProject, startDate: e.target.value })}
+                  onChange={(e) =>
+                    setNewProject({ ...newProject, startDate: e.target.value })
+                  }
                   required
                 />
               </div>
-  
+
               <div>
                 <Label htmlFor="estimatedEndDate">Previsão de Término</Label>
                 <Input
                   id="estimatedEndDate"
                   type="date"
                   value={newProject.estimatedEndDate}
-                  onChange={(e) => setNewProject({ ...newProject, estimatedEndDate: e.target.value })}
+                  onChange={(e) =>
+                    setNewProject({ ...newProject, estimatedEndDate: e.target.value })
+                  }
                   required
                 />
               </div>
-  
+
               <div>
                 <Label htmlFor="totalArea">Área Total (m²)</Label>
                 <Input
                   id="totalArea"
                   type="number"
                   value={newProject.totalArea}
-                  onChange={(e) => setNewProject({ ...newProject, totalArea: e.target.value })}
+                  onChange={(e) =>
+                    setNewProject({ ...newProject, totalArea: e.target.value })
+                  }
                   required
                 />
               </div>
-  
+
               <div>
                 <Label htmlFor="numberOfUnits">Número de Unidades</Label>
                 <Input
                   id="numberOfUnits"
                   type="number"
                   value={newProject.numberOfUnits}
-                  onChange={(e) => setNewProject({ ...newProject, numberOfUnits: e.target.value })}
+                  onChange={(e) =>
+                    setNewProject({ ...newProject, numberOfUnits: e.target.value })
+                  }
                   required
                 />
               </div>
-  
+
               <div>
                 <Label htmlFor="budget">Orçamento Previsto (R$)</Label>
                 <Input
                   id="budget"
                   type="number"
                   value={newProject.budget}
-                  onChange={(e) => setNewProject({ ...newProject, budget: e.target.value })}
+                  onChange={(e) =>
+                    setNewProject({ ...newProject, budget: e.target.value })
+                  }
                   required
                 />
               </div>
-  
+
               <div>
                 <Label htmlFor="status">Status</Label>
                 <select
                   id="status"
                   value={newProject.status}
-                  onChange={(e) => setNewProject({ ...newProject, status: e.target.value })}
+                  onChange={(e) =>
+                    setNewProject({ ...newProject, status: e.target.value })
+                  }
                   className="w-full border border-gray-300 rounded px-2 py-1"
                   required
                 >
@@ -1006,143 +1443,351 @@ export default function Projects({ data }) {
                 </select>
               </div>
             </div>
-  
+
             <div>
               <Label htmlFor="description">Descrição do Projeto</Label>
               <textarea
                 id="description"
                 value={newProject.description}
-                onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                onChange={(e) =>
+                  setNewProject({ ...newProject, description: e.target.value })
+                }
                 className="w-full border border-gray-300 rounded px-2 py-1 h-32"
                 required
               />
             </div>
-  
+
             <div className="flex justify-end space-x-4">
-              <Button type="button" onClick={onCancel} className="bg-gray-500 hover:bg-gray-600 text-white">
+              <Button
+                type="button"
+                onClick={onCancel}
+                className="bg-gray-500 hover:bg-gray-600 text-white"
+              >
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-teal-500 hover:bg-teal-600 text-white">
+              <Button
+                type="submit"
+                className="bg-teal-500 hover:bg-teal-600 text-white"
+              >
                 Salvar
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
-    );
-  
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-3xl font-bold text-gray-800">Gerenciamento de Obras</h2>
-          <Button
-            onClick={() => setShowProjectForm(true)}
-            className="bg-teal-500 hover:bg-teal-600 text-white"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Nova Obra
-          </Button>
-        </div>
-  
-        {selectedProject ? (
-          <>
-            <div className="flex items-center space-x-4 mb-6">
-              <Button
-                onClick={() => setSelectedProject(null)}
-                variant="ghost"
-                className="text-gray-600"
+    </div>
+  );
+}
+
+function DocumentForm({ onSubmit, onCancel, newDocument, setNewDocument }) {
+  const [documentTypeOptions, setDocumentTypeOptions] = useState(documentTypes);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center">
+      <Card className="w-full max-w-lg h-fit max-h-[90vh] overflow-y-auto bg-white shadow-lg">
+        <CardHeader>
+          <CardTitle>Upload de Documento</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="docType">Tipo de Documento</Label>
+              <select
+                id="docType"
+                value={newDocument.type}
+                onChange={(e) =>
+                  setNewDocument({ ...newDocument, type: e.target.value })
+                }
+                className="w-full border border-gray-300 rounded px-2 py-1"
+                required
               >
-                ← Voltar
-              </Button>
-              <h3 className="text-2xl font-bold text-gray-800">
-                {selectedProject.name}
-              </h3>
-            </div>
-  
-            <div className="mb-6 border-b border-gray-200">
-              <nav className="flex space-x-4">
-                {Object.entries(TABS).map(([key, value]) => (
-                  <Button
-                    key={key}
-                    onClick={() => setActiveTab(value)}
-                    className={`px-4 py-2 font-medium rounded-t-lg transition-colors duration-300 ${
-                      activeTab === value
-                        ? 'bg-white text-teal-600 border-b-2 border-teal-500'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    {key.charAt(0) + key.slice(1).toLowerCase()}
-                  </Button>
+                <option value="">Selecione o tipo</option>
+                {documentTypeOptions.map((docType) => (
+                  <option key={docType.value} value={docType.value}>
+                    {docType.label}
+                  </option>
                 ))}
-              </nav>
+              </select>
             </div>
-  
-            {renderContent()}
-          </>
-        ) : (
-          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project) => (
-              <Card
-                key={project.id}
-                className="bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg hover:shadow-xl transition-all duration-300"
+
+            <div>
+              <Label htmlFor="docName">Nome do Documento</Label>
+              <Input
+                id="docName"
+                value={newDocument.name}
+                onChange={(e) =>
+                  setNewDocument({ ...newDocument, name: e.target.value })
+                }
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="docStatus">Status</Label>
+              <select
+                id="docStatus"
+                value={newDocument.status}
+                onChange={(e) =>
+                  setNewDocument({ ...newDocument, status: e.target.value })
+                }
+                className="w-full border border-gray-300 rounded px-2 py-1"
+                required
               >
-                <CardHeader>
-                  <CardTitle className="text-xl text-gray-800">{project.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
+                <option value="pending">Pendente</option>
+                <option value="approved">Aprovado</option>
+                <option value="expired">Expirado</option>
+              </select>
+            </div>
+
+            <div>
+              <Label htmlFor="expiryDate">Data de Validade (se aplicável)</Label>
+              <Input
+                id="expiryDate"
+                type="date"
+                value={newDocument.expiryDate}
+                onChange={(e) =>
+                  setNewDocument({ ...newDocument, expiryDate: e.target.value })
+                }
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="docFile">Arquivo</Label>
+              <Input
+                id="docFile"
+                type="file"
+                onChange={(e) =>
+                  setNewDocument({ ...newDocument, file: e.target.files[0] })
+                }
+                required
+              />
+            </div>
+
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                onClick={onCancel}
+                className="bg-gray-500 hover:bg-gray-600 text-white"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-teal-500 hover:bg-teal-600 text-white"
+              >
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function TimelineForm({
+  onSubmit,
+  onCancel,
+  newTimeline,
+  setNewTimeline,
+  newMilestone,
+  setNewMilestone,
+  newTask,
+  setNewTask,
+  handleAddMilestone,
+  handleAddTask,
+}) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center">
+      <Card className="w-full max-w-2xl h-fit max-h-[90vh] overflow-y-auto bg-white shadow-lg">
+        <CardHeader>
+          <CardTitle>Nova Fase da Timeline</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="phase">Fase</Label>
+              <Input
+                id="phase"
+                value={newTimeline.phase}
+                onChange={(e) =>
+                  setNewTimeline({ ...newTimeline, phase: e.target.value })
+                }
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startDate">Data de Início</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={newTimeline.startDate}
+                  onChange={(e) =>
+                    setNewTimeline({ ...newTimeline, startDate: e.target.value })
+                  }
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="endDate">Data de Término</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={newTimeline.endDate}
+                  onChange={(e) =>
+                    setNewTimeline({ ...newTimeline, endDate: e.target.value })
+                  }
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="progress">Progresso (%)</Label>
+                <Input
+                  id="progress"
+                  type="number"
+                  value={newTimeline.progress}
+                  onChange={(e) =>
+                    setNewTimeline({ ...newTimeline, progress: e.target.value })
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-medium mb-2">Marcos</h4>
+              <div className="space-y-2">
+                {newTimeline.milestones.map((milestone, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500">Status</p>
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          getStatusColor(project.status)
-                        }`}
-                      >
-                        {getStatusText(project.status)}
-                      </span>
+                      <p className="text-sm font-medium">{milestone.description}</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(milestone.date).toLocaleDateString()}
+                      </p>
                     </div>
-  
-                    <div>
-                      <p className="text-sm text-gray-500">Progresso Geral</p>
-                      <Progress value={project.progress} className="mt-1" />
-                    </div>
-  
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-500">Início</p>
-                        <p className="font-medium">
-                          {new Date(project.startDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Término Previsto</p>
-                        <p className="font-medium">
-                          {new Date(project.estimatedEndDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-  
-                    <Button
-                      onClick={() => handleProjectSelect(project)}
-                      className="w-full bg-teal-500 hover:bg-teal-600 text-white"
-                    >
-                      Ver Detalhes
-                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-  
-        {showProjectForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-40">
-            <ProjectForm
-              onSubmit={handleProjectSubmit}
-              onCancel={() => setShowProjectForm(false)}
-            />
-          </div>
-        )}
-      </div>
-    );
-  }
+                ))}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="milestoneDate">Data do Marco</Label>
+                    <Input
+                      id="milestoneDate"
+                      type="date"
+                      value={newMilestone.date}
+                      onChange={(e) =>
+                        setNewMilestone({ ...newMilestone, date: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="milestoneDescription">Descrição</Label>
+                    <Input
+                      id="milestoneDescription"
+                      value={newMilestone.description}
+                      onChange={(e) =>
+                        setNewMilestone({
+                          ...newMilestone,
+                          description: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleAddMilestone}
+                  className="mt-2 bg-teal-500 hover:bg-teal-600 text-white"
+                >
+                  Adicionar Marco
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-medium mb-2">Tarefas</h4>
+              <div className="space-y-2">
+                {newTimeline.tasks.map((task, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{task.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {task.progress}% - {task.status}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="taskName">Nome da Tarefa</Label>
+                    <Input
+                      id="taskName"
+                      value={newTask.name}
+                      onChange={(e) =>
+                        setNewTask({ ...newTask, name: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="taskStatus">Status</Label>
+                    <select
+                      id="taskStatus"
+                      value={newTask.status}
+                      onChange={(e) =>
+                        setNewTask({ ...newTask, status: e.target.value })
+                      }
+                      className="w-full border border-gray-300 rounded px-2 py-1"
+                    >
+                      <option value="pending">Pendente</option>
+                      <option value="in_progress">Em Progresso</option>
+                      <option value="completed">Concluída</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="taskProgress">Progresso (%)</Label>
+                    <Input
+                      id="taskProgress"
+                      type="number"
+                      value={newTask.progress}
+                      onChange={(e) =>
+                        setNewTask({ ...newTask, progress: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleAddTask}
+                  className="mt-2 bg-teal-500 hover:bg-teal-600 text-white"
+                >
+                  Adicionar Tarefa
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                onClick={onCancel}
+                className="bg-gray-500 hover:bg-gray-600 text-white"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-teal-500 hover:bg-teal-600 text-white"
+              >
+                Salvar Fase
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
