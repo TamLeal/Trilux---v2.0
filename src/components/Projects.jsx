@@ -341,6 +341,12 @@ export default function Projects({ data }) {
     progress: 0,
   });
 
+  const [editPhaseIndex, setEditPhaseIndex] = useState(null);
+  const [editPhase, setEditPhase] = useState(null);
+
+  const [editDocument, setEditDocument] = useState(null);
+  const [editDocumentCategory, setEditDocumentCategory] = useState(null);
+
   useEffect(() => {
     if (canvasRef.current) {
       const canvas = canvasRef.current;
@@ -362,6 +368,57 @@ export default function Projects({ data }) {
   useEffect(() => {
     localStorage.setItem('projects', JSON.stringify(projects));
   }, [projects]);
+
+  // Função para calcular o progresso de uma fase com base nas tarefas
+  const calculatePhaseProgress = (phase) => {
+    if (!phase.tasks || phase.tasks.length === 0) return 0;
+
+    const totalProgress = phase.tasks.reduce(
+      (acc, task) => acc + parseFloat(task.progress),
+      0
+    );
+    return (totalProgress / phase.tasks.length).toFixed(2);
+  };
+
+  // Função para calcular o progresso geral com base nas fases
+  const calculateOverallProgress = (project) => {
+    if (!project.timeline || project.timeline.length === 0) return 0;
+
+    const totalProgress = project.timeline.reduce(
+      (acc, phase) => acc + parseFloat(phase.progress),
+      0
+    );
+    return (totalProgress / project.timeline.length).toFixed(2);
+  };
+
+  const updateProjectProgress = (projectId) => {
+    setProjects((prevProjects) =>
+      prevProjects.map((p) => {
+        if (p.id === projectId) {
+          // Atualizar o progresso de cada fase
+          const updatedTimeline = p.timeline.map((phase) => {
+            const updatedProgress = calculatePhaseProgress(phase);
+            return { ...phase, progress: updatedProgress };
+          });
+
+          // Atualizar o progresso geral
+          const updatedOverallProgress = calculateOverallProgress({
+            ...p,
+            timeline: updatedTimeline,
+          });
+
+          return { ...p, timeline: updatedTimeline, progress: updatedOverallProgress };
+        }
+        return p;
+      })
+    );
+  };
+
+  useEffect(() => {
+    if (selectedProject) {
+      updateProjectProgress(selectedProject.id);
+    }
+  }, [selectedProject]);
 
   const handlePhotoSelect = (e) => {
     const file = e.target.files[0];
@@ -547,6 +604,42 @@ export default function Projects({ data }) {
     );
   };
 
+  const handleEditDocument = (docType, doc) => {
+    setEditDocument({ ...doc });
+    setEditDocumentCategory(docType);
+    setShowDocumentUpload(true);
+  };
+
+  const handleDocumentEditSubmit = (e) => {
+    e.preventDefault();
+    const updatedDocuments = selectedProject.documents.map((docCategory) => {
+      if (docCategory.type === editDocumentCategory) {
+        return {
+          ...docCategory,
+          items: docCategory.items.map((doc) =>
+            doc.id === editDocument.id ? editDocument : doc
+          ),
+        };
+      }
+      return docCategory;
+    });
+
+    setSelectedProject((prev) => ({
+      ...prev,
+      documents: updatedDocuments,
+    }));
+
+    setProjects((prevProjects) =>
+      prevProjects.map((p) =>
+        p.id === selectedProject.id ? { ...p, documents: updatedDocuments } : p
+      )
+    );
+
+    setEditDocument(null);
+    setEditDocumentCategory(null);
+    setShowDocumentUpload(false);
+  };
+
   const handleProjectSubmit = (e) => {
     e.preventDefault();
     const projectToAdd = {
@@ -636,10 +729,43 @@ export default function Projects({ data }) {
     );
   };
 
+  const handleEditPhase = (index) => {
+    setEditPhaseIndex(index);
+    setEditPhase({ ...selectedProject.timeline[index] });
+    setShowTimelineForm(true);
+  };
+
+  const handlePhaseEditSubmit = (e) => {
+    e.preventDefault();
+
+    const updatedTimeline = selectedProject.timeline.map((phase, index) =>
+      index === editPhaseIndex ? editPhase : phase
+    );
+
+    setSelectedProject((prev) => ({
+      ...prev,
+      timeline: updatedTimeline,
+    }));
+
+    setProjects((prevProjects) =>
+      prevProjects.map((p) =>
+        p.id === selectedProject.id ? { ...p, timeline: updatedTimeline } : p
+      )
+    );
+
+    setEditPhaseIndex(null);
+    setEditPhase(null);
+    setShowTimelineForm(false);
+  };
+
   const renderTimeline = () => (
     <div className="space-y-6">
       <Button
-        onClick={() => setShowTimelineForm(true)}
+        onClick={() => {
+          setEditPhaseIndex(null);
+          setEditPhase(null);
+          setShowTimelineForm(true);
+        }}
         className="bg-teal-500 hover:bg-teal-600 text-white"
       >
         <Plus className="h-4 w-4 mr-2" />
@@ -649,9 +775,18 @@ export default function Projects({ data }) {
       {selectedProject.timeline.map((phase, index) => (
         <Card key={index} className="bg-gradient-to-br from-gray-50 to-gray-100">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Clock className="h-5 w-5 mr-2" />
-              {phase.phase}
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Clock className="h-5 w-5 mr-2" />
+                {phase.phase}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEditPhase(index)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -720,10 +855,10 @@ export default function Projects({ data }) {
 
       {showTimelineForm && (
         <TimelineForm
-          onSubmit={handleTimelineSubmit}
+          onSubmit={editPhaseIndex !== null ? handlePhaseEditSubmit : handleTimelineSubmit}
           onCancel={() => setShowTimelineForm(false)}
-          newTimeline={newTimeline}
-          setNewTimeline={setNewTimeline}
+          newTimeline={editPhaseIndex !== null ? editPhase : newTimeline}
+          setNewTimeline={editPhaseIndex !== null ? setEditPhase : setNewTimeline}
           newMilestone={newMilestone}
           setNewMilestone={setNewMilestone}
           newTask={newTask}
@@ -746,7 +881,10 @@ export default function Projects({ data }) {
             </span>
             <Button
               className="bg-teal-500 hover:bg-teal-600 text-white"
-              onClick={() => setShowDocumentUpload(true)}
+              onClick={() => {
+                setEditDocument(null);
+                setShowDocumentUpload(true);
+              }}
             >
               <Upload className="h-4 w-4 mr-2" />
               Novo Documento
@@ -810,6 +948,13 @@ export default function Projects({ data }) {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => handleEditDocument(category.type, doc)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="text-red-600"
                             onClick={() => handleRemoveDocument(category.type, doc.id)}
                           >
@@ -828,10 +973,13 @@ export default function Projects({ data }) {
 
       {showDocumentUpload && (
         <DocumentForm
-          onSubmit={handleDocumentUpload}
-          onCancel={() => setShowDocumentUpload(false)}
-          newDocument={newDocument}
-          setNewDocument={setNewDocument}
+          onSubmit={editDocument ? handleDocumentEditSubmit : handleDocumentUpload}
+          onCancel={() => {
+            setShowDocumentUpload(false);
+            setEditDocument(null);
+          }}
+          newDocument={editDocument || newDocument}
+          setNewDocument={editDocument ? setEditDocument : setNewDocument}
         />
       )}
     </div>
@@ -896,143 +1044,27 @@ export default function Projects({ data }) {
       </Card>
 
       {showPhotoUpload && (
-        <Card className="bg-gradient-to-br from-gray-50 to-gray-100">
-          <CardHeader>
-            <CardTitle>Upload e Anotação de Foto</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handlePhotoUpload} className="space-y-4">
-              <div>
-                <Label htmlFor="photo">Selecionar Foto</Label>
-                <Input
-                  id="photo"
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoSelect}
-                  className="border-gray-300"
-                />
-              </div>
-
-              {currentImage && (
-                <div className="space-y-4">
-                  <div>
-                    <Label>Ferramentas de Anotação</Label>
-                    <div className="flex space-x-2 mb-2">
-                      <Button
-                        type="button"
-                        onClick={() => setSelectedTool('pen')}
-                        className={`${
-                          selectedTool === 'pen'
-                            ? 'bg-teal-500 text-white'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Caneta
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => setSelectedTool('arrow')}
-                        className={`${
-                          selectedTool === 'arrow'
-                            ? 'bg-teal-500 text-white'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        <ArrowRight className="h-4 w-4 mr-2" />
-                        Seta
-                      </Button>
-                      <div className="flex items-center space-x-2">
-                        <Label htmlFor="color" className="mr-2">
-                          Cor:
-                        </Label>
-                        <input
-                          type="color"
-                          id="color"
-                          value={currentColor}
-                          onChange={(e) => setCurrentColor(e.target.value)}
-                          className="w-8 h-8 rounded"
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Label htmlFor="width" className="mr-2">
-                          Espessura:
-                        </Label>
-                        <input
-                          type="range"
-                          id="width"
-                          min="1"
-                          max="10"
-                          value={currentWidth}
-                          onChange={(e) => setCurrentWidth(parseInt(e.target.value))}
-                          className="w-24"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="relative border border-gray-300 rounded-lg overflow-hidden">
-                      <canvas
-                        ref={canvasRef}
-                        onMouseDown={startDrawing}
-                        onMouseMove={draw}
-                        onMouseUp={stopDrawing}
-                        onMouseOut={stopDrawing}
-                        className="w-full h-96 object-contain"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <Label htmlFor="description">Descrição</Label>
-                <Input
-                  id="description"
-                  value={newPhoto.description}
-                  onChange={(e) =>
-                    setNewPhoto({ ...newPhoto, description: e.target.value })
-                  }
-                  placeholder="Descreva o que a foto mostra..."
-                  className="border-gray-300"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="location">Localização</Label>
-                <Input
-                  id="location"
-                  value={newPhoto.location}
-                  onChange={(e) =>
-                    setNewPhoto({ ...newPhoto, location: e.target.value })
-                  }
-                  placeholder="Ex: Pavimento 3, Área comum..."
-                  className="border-gray-300"
-                  required
-                />
-              </div>
-
-              <div className="flex justify-end space-x-4">
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setShowPhotoUpload(false);
-                    setCurrentImage(null);
-                  }}
-                  className="bg-gray-500 hover:bg-gray-600 text-white"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-teal-500 hover:bg-teal-600 text-white"
-                >
-                  Salvar
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        <PhotoUploadForm
+          onSubmit={handlePhotoUpload}
+          onCancel={() => {
+            setShowPhotoUpload(false);
+            setCurrentImage(null);
+          }}
+          newPhoto={newPhoto}
+          setNewPhoto={setNewPhoto}
+          handlePhotoSelect={handlePhotoSelect}
+          canvasRef={canvasRef}
+          startDrawing={startDrawing}
+          draw={draw}
+          stopDrawing={stopDrawing}
+          selectedTool={selectedTool}
+          setSelectedTool={setSelectedTool}
+          currentColor={currentColor}
+          setCurrentColor={setCurrentColor}
+          currentWidth={currentWidth}
+          setCurrentWidth={setCurrentWidth}
+          currentImage={currentImage}
+        />
       )}
     </div>
   );
@@ -1486,7 +1518,7 @@ function DocumentForm({ onSubmit, onCancel, newDocument, setNewDocument }) {
     <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center">
       <Card className="w-full max-w-lg h-fit max-h-[90vh] overflow-y-auto bg-white shadow-lg">
         <CardHeader>
-          <CardTitle>Upload de Documento</CardTitle>
+          <CardTitle>{newDocument.id ? 'Editar Documento' : 'Upload de Documento'}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
@@ -1500,6 +1532,7 @@ function DocumentForm({ onSubmit, onCancel, newDocument, setNewDocument }) {
                 }
                 className="w-full border border-gray-300 rounded px-2 py-1"
                 required
+                disabled={!!newDocument.id}
               >
                 <option value="">Selecione o tipo</option>
                 {documentTypeOptions.map((docType) => (
@@ -1551,17 +1584,19 @@ function DocumentForm({ onSubmit, onCancel, newDocument, setNewDocument }) {
               />
             </div>
 
-            <div>
-              <Label htmlFor="docFile">Arquivo</Label>
-              <Input
-                id="docFile"
-                type="file"
-                onChange={(e) =>
-                  setNewDocument({ ...newDocument, file: e.target.files[0] })
-                }
-                required
-              />
-            </div>
+            {!newDocument.id && (
+              <div>
+                <Label htmlFor="docFile">Arquivo</Label>
+                <Input
+                  id="docFile"
+                  type="file"
+                  onChange={(e) =>
+                    setNewDocument({ ...newDocument, file: e.target.files[0] })
+                  }
+                  required
+                />
+              </div>
+            )}
 
             <div className="flex justify-end space-x-4">
               <Button
@@ -1601,7 +1636,7 @@ function TimelineForm({
     <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center">
       <Card className="w-full max-w-2xl h-fit max-h-[90vh] overflow-y-auto bg-white shadow-lg">
         <CardHeader>
-          <CardTitle>Nova Fase da Timeline</CardTitle>
+          <CardTitle>{newTimeline.phase ? 'Editar Fase' : 'Nova Fase da Timeline'}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
@@ -1783,6 +1818,164 @@ function TimelineForm({
                 className="bg-teal-500 hover:bg-teal-600 text-white"
               >
                 Salvar Fase
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function PhotoUploadForm({
+  onSubmit,
+  onCancel,
+  newPhoto,
+  setNewPhoto,
+  handlePhotoSelect,
+  canvasRef,
+  startDrawing,
+  draw,
+  stopDrawing,
+  selectedTool,
+  setSelectedTool,
+  currentColor,
+  setCurrentColor,
+  currentWidth,
+  setCurrentWidth,
+  currentImage,
+}) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center">
+      <Card className="w-full max-w-3xl h-fit max-h-[90vh] overflow-y-auto bg-white shadow-lg">
+        <CardHeader>
+          <CardTitle>Upload e Anotação de Foto</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="photo">Selecionar Foto</Label>
+              <Input
+                id="photo"
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoSelect}
+                className="border-gray-300"
+              />
+            </div>
+
+            {currentImage && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Ferramentas de Anotação</Label>
+                  <div className="flex space-x-2 mb-2">
+                    <Button
+                      type="button"
+                      onClick={() => setSelectedTool('pen')}
+                      className={`${
+                        selectedTool === 'pen'
+                          ? 'bg-teal-500 text-white'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Caneta
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setSelectedTool('arrow')}
+                      className={`${
+                        selectedTool === 'arrow'
+                          ? 'bg-teal-500 text-white'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      <ArrowRight className="h-4 w-4 mr-2" />
+                      Seta
+                    </Button>
+                    <div className="flex items-center space-x-2">
+                      <Label htmlFor="color" className="mr-2">
+                        Cor:
+                      </Label>
+                      <input
+                        type="color"
+                        id="color"
+                        value={currentColor}
+                        onChange={(e) => setCurrentColor(e.target.value)}
+                        className="w-8 h-8 rounded"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Label htmlFor="width" className="mr-2">
+                        Espessura:
+                      </Label>
+                      <input
+                        type="range"
+                        id="width"
+                        min="1"
+                        max="10"
+                        value={currentWidth}
+                        onChange={(e) => setCurrentWidth(parseInt(e.target.value))}
+                        className="w-24"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="relative border border-gray-300 rounded-lg overflow-hidden">
+                    <canvas
+                      ref={canvasRef}
+                      onMouseDown={startDrawing}
+                      onMouseMove={draw}
+                      onMouseUp={stopDrawing}
+                      onMouseOut={stopDrawing}
+                      className="w-full h-96 object-contain"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="description">Descrição</Label>
+              <Input
+                id="description"
+                value={newPhoto.description}
+                onChange={(e) =>
+                  setNewPhoto({ ...newPhoto, description: e.target.value })
+                }
+                placeholder="Descreva o que a foto mostra..."
+                className="border-gray-300"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="location">Localização</Label>
+              <Input
+                id="location"
+                value={newPhoto.location}
+                onChange={(e) =>
+                  setNewPhoto({ ...newPhoto, location: e.target.value })
+                }
+                placeholder="Ex: Pavimento 3, Área comum..."
+                className="border-gray-300"
+                required
+              />
+            </div>
+
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                onClick={onCancel}
+                className="bg-gray-500 hover:bg-gray-600 text-white"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-teal-500 hover:bg-teal-600 text-white"
+              >
+                Salvar
               </Button>
             </div>
           </form>
