@@ -32,6 +32,7 @@ import {
   MousePointer,
   DollarSign,
   XCircle,
+  Home,
 } from 'lucide-react';
 
 const TABS = {
@@ -347,7 +348,8 @@ export default function Projects({ data }) {
   const [editDocument, setEditDocument] = useState(null);
   const [editDocumentCategory, setEditDocumentCategory] = useState(null);
 
-  const [editProject, setEditProject] = useState(null); // Para edição de nome da obra
+  const [editProject, setEditProject] = useState(null);
+  const [editProjectStatus, setEditProjectStatus] = useState(null);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -696,6 +698,24 @@ export default function Projects({ data }) {
       prevProjects.map((p) => (p.id === editProject.id ? editProject : p))
     );
     setEditProject(null);
+  };
+
+  const handleDeleteProject = (projectId) => {
+    if (window.confirm('Tem certeza que deseja remover esta obra?')) {
+      setProjects((prevProjects) => prevProjects.filter((p) => p.id !== projectId));
+    }
+  };
+
+  const handleEditProjectStatus = (project) => {
+    setEditProjectStatus(project);
+  };
+
+  const handleProjectStatusSubmit = (e) => {
+    e.preventDefault();
+    setProjects((prevProjects) =>
+      prevProjects.map((p) => (p.id === editProjectStatus.id ? editProjectStatus : p))
+    );
+    setEditProjectStatus(null);
   };
 
   const handleTimelineSubmit = (e) => {
@@ -1270,8 +1290,17 @@ export default function Projects({ data }) {
                 <p className="text-sm text-gray-600">Status</p>
                 <p className="text-2xl font-bold">{getStatusText(selectedProject.status)}</p>
               </div>
-              <div className="p-2 bg-purple-100 rounded-full">
-                <Building className="h-6 w-6 text-purple-600" />
+              <div className="flex items-center space-x-2">
+                <div className="p-2 bg-purple-100 rounded-full">
+                  <Building className="h-6 w-6 text-purple-600" />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEditProjectStatus(selectedProject)}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -1422,27 +1451,56 @@ export default function Projects({ data }) {
               >
                 <CardHeader>
                   <CardTitle className="text-xl text-gray-800 flex justify-between items-center">
-                    {project.name}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditProjectName({ ...project })}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center">
+                      <Home className="h-5 w-5 mr-2" />
+                      {project.name}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditProjectName({ ...project })}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditProjectStatus({ ...project })}
+                      >
+                        <Building className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600"
+                        onClick={() => handleDeleteProject(project.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm text-gray-500">Status</p>
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          getStatusColor(project.status)
-                        }`}
-                      >
-                        {getStatusText(project.status)}
-                      </span>
+                      <div className="flex items-center">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            getStatusColor(project.status)
+                          }`}
+                        >
+                          {getStatusText(project.status)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditProjectStatus({ ...project })}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     <div>
@@ -1499,6 +1557,15 @@ export default function Projects({ data }) {
           setProject={setEditProject}
           onSubmit={handleProjectNameSubmit}
           onCancel={() => setEditProject(null)}
+        />
+      )}
+
+      {editProjectStatus && (
+        <EditProjectStatusForm
+          project={editProjectStatus}
+          setProject={setEditProjectStatus}
+          onSubmit={handleProjectStatusSubmit}
+          onCancel={() => setEditProjectStatus(null)}
         />
       )}
     </div>
@@ -1713,6 +1780,53 @@ function EditProjectNameForm({ project, setProject, onSubmit, onCancel }) {
                 onChange={(e) => setProject({ ...project, name: e.target.value })}
                 required
               />
+            </div>
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                onClick={onCancel}
+                className="bg-gray-500 hover:bg-gray-600 text-white"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-teal-500 hover:bg-teal-600 text-white"
+              >
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function EditProjectStatusForm({ project, setProject, onSubmit, onCancel }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+      <Card className="w-full max-w-md bg-white shadow-lg">
+        <CardHeader>
+          <CardTitle>Editar Status da Obra</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="projectStatus">Status</Label>
+              <select
+                id="projectStatus"
+                value={project.status}
+                onChange={(e) => setProject({ ...project, status: e.target.value })}
+                className="w-full border border-gray-300 rounded px-2 py-1"
+                required
+              >
+                {projectStatuses.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex justify-end space-x-4">
               <Button
