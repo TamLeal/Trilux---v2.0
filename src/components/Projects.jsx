@@ -87,7 +87,7 @@ const initialProjects = [
     estimatedEndDate: '2025-06-30',
     budget: 1500000,
     spent: 675000,
-    progress: 45,
+    progress: 0, // Será calculado
     status: 'in_progress',
     constructionType: 'residential',
     totalArea: '5000',
@@ -115,7 +115,7 @@ const initialProjects = [
         phase: 'Fundação',
         startDate: '2024-01-15',
         endDate: '2024-03-15',
-        progress: 100,
+        progress: 0, // Será calculado
         milestones: [
           { date: '2024-02-01', description: 'Conclusão da escavação' },
           { date: '2024-03-15', description: 'Fundação finalizada' },
@@ -130,7 +130,7 @@ const initialProjects = [
         phase: 'Estrutura',
         startDate: '2024-03-16',
         endDate: '2024-06-15',
-        progress: 45,
+        progress: 0, // Será calculado
         milestones: [
           { date: '2024-04-15', description: 'Conclusão do primeiro pavimento' },
         ],
@@ -190,7 +190,7 @@ const initialProjects = [
     estimatedEndDate: '2025-08-30',
     budget: 800000,
     spent: 120000,
-    progress: 15,
+    progress: 0, // Será calculado
     status: 'planning',
     constructionType: 'residential',
     totalArea: '3000',
@@ -218,7 +218,7 @@ const initialProjects = [
         phase: 'Preparação do Terreno',
         startDate: '2024-02-01',
         endDate: '2024-03-15',
-        progress: 80,
+        progress: 0, // Será calculado
         milestones: [
           { date: '2024-02-15', description: 'Limpeza do terreno concluída' },
           { date: '2024-03-01', description: 'Topografia finalizada' },
@@ -347,6 +347,8 @@ export default function Projects({ data }) {
   const [editDocument, setEditDocument] = useState(null);
   const [editDocumentCategory, setEditDocumentCategory] = useState(null);
 
+  const [editProject, setEditProject] = useState(null); // Para edição de nome da obra
+
   useEffect(() => {
     if (canvasRef.current) {
       const canvas = canvasRef.current;
@@ -415,10 +417,17 @@ export default function Projects({ data }) {
   };
 
   useEffect(() => {
+    projects.forEach((project) => {
+      updateProjectProgress(project.id);
+    });
+  }, []);
+
+  useEffect(() => {
     if (selectedProject) {
-      updateProjectProgress(selectedProject.id);
+      const updatedProject = projects.find((p) => p.id === selectedProject.id);
+      setSelectedProject(updatedProject);
     }
-  }, [selectedProject]);
+  }, [projects]);
 
   const handlePhotoSelect = (e) => {
     const file = e.target.files[0];
@@ -539,15 +548,14 @@ export default function Projects({ data }) {
 
   const handleDocumentUpload = (e) => {
     e.preventDefault();
-    if (newDocument.file) {
-      const reader = new FileReader();
-      reader.onload = () => {
+    if (newDocument.file || newDocument.fileData) {
+      const processDocument = (fileData) => {
         const newDoc = {
           id: Date.now(),
           name: newDocument.name,
           status: newDocument.status,
           expiryDate: newDocument.expiryDate || null,
-          fileData: reader.result,
+          fileData: fileData,
         };
 
         const existingCategory = selectedProject.documents.find(
@@ -578,7 +586,16 @@ export default function Projects({ data }) {
           file: null,
         });
       };
-      reader.readAsDataURL(newDocument.file);
+
+      if (newDocument.file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          processDocument(reader.result);
+        };
+        reader.readAsDataURL(newDocument.file);
+      } else {
+        processDocument(newDocument.fileData);
+      }
     }
   };
 
@@ -669,21 +686,49 @@ export default function Projects({ data }) {
     });
   };
 
+  const handleEditProjectName = (project) => {
+    setEditProject(project);
+  };
+
+  const handleProjectNameSubmit = (e) => {
+    e.preventDefault();
+    setProjects((prevProjects) =>
+      prevProjects.map((p) => (p.id === editProject.id ? editProject : p))
+    );
+    setEditProject(null);
+  };
+
   const handleTimelineSubmit = (e) => {
     e.preventDefault();
+
+    const phaseToSave = editPhaseIndex !== null ? editPhase : newTimeline;
 
     setProjects((prevProjects) =>
       prevProjects.map((p) =>
         p.id === selectedProject.id
-          ? { ...p, timeline: [...p.timeline, newTimeline] }
+          ? editPhaseIndex !== null
+            ? {
+                ...p,
+                timeline: p.timeline.map((phase, index) =>
+                  index === editPhaseIndex ? phaseToSave : phase
+                ),
+              }
+            : { ...p, timeline: [...p.timeline, phaseToSave] }
           : p
       )
     );
 
     setSelectedProject((prev) => ({
       ...prev,
-      timeline: [...prev.timeline, newTimeline],
+      timeline:
+        editPhaseIndex !== null
+          ? prev.timeline.map((phase, index) =>
+              index === editPhaseIndex ? phaseToSave : phase
+            )
+          : [...prev.timeline, phaseToSave],
     }));
+
+    updateProjectProgress(selectedProject.id);
 
     setShowTimelineForm(false);
     setNewTimeline({
@@ -694,22 +739,80 @@ export default function Projects({ data }) {
       milestones: [],
       tasks: [],
     });
+    setEditPhaseIndex(null);
+    setEditPhase(null);
   };
 
   const handleAddMilestone = () => {
-    setNewTimeline((prev) => ({
-      ...prev,
-      milestones: [...prev.milestones, newMilestone],
-    }));
+    const timelineState = editPhaseIndex !== null ? editPhase : newTimeline;
+    const setTimelineState = editPhaseIndex !== null ? setEditPhase : setNewTimeline;
+
+    setTimelineState({
+      ...timelineState,
+      milestones: [...timelineState.milestones, newMilestone],
+    });
     setNewMilestone({ date: '', description: '' });
   };
 
+  const handleRemoveMilestone = (index) => {
+    const timelineState = editPhaseIndex !== null ? editPhase : newTimeline;
+    const setTimelineState = editPhaseIndex !== null ? setEditPhase : setNewTimeline;
+
+    const updatedMilestones = timelineState.milestones.filter((_, idx) => idx !== index);
+    setTimelineState({
+      ...timelineState,
+      milestones: updatedMilestones,
+    });
+  };
+
   const handleAddTask = () => {
-    setNewTimeline((prev) => ({
-      ...prev,
-      tasks: [...prev.tasks, newTask],
-    }));
+    const timelineState = editPhaseIndex !== null ? editPhase : newTimeline;
+    const setTimelineState = editPhaseIndex !== null ? setEditPhase : setNewTimeline;
+
+    setTimelineState({
+      ...timelineState,
+      tasks: [...timelineState.tasks, newTask],
+    });
     setNewTask({ name: '', status: 'pending', progress: 0 });
+  };
+
+  const handleRemoveTask = (index) => {
+    const timelineState = editPhaseIndex !== null ? editPhase : newTimeline;
+    const setTimelineState = editPhaseIndex !== null ? setEditPhase : setNewTimeline;
+
+    const updatedTasks = timelineState.tasks.filter((_, idx) => idx !== index);
+    setTimelineState({
+      ...timelineState,
+      tasks: updatedTasks,
+    });
+  };
+
+  const handleTaskChange = (index, field, value) => {
+    const timelineState = editPhaseIndex !== null ? editPhase : newTimeline;
+    const setTimelineState = editPhaseIndex !== null ? setEditPhase : setNewTimeline;
+
+    const updatedTasks = timelineState.tasks.map((task, idx) =>
+      idx === index ? { ...task, [field]: value } : task
+    );
+
+    setTimelineState({
+      ...timelineState,
+      tasks: updatedTasks,
+    });
+  };
+
+  const handleMilestoneChange = (index, field, value) => {
+    const timelineState = editPhaseIndex !== null ? editPhase : newTimeline;
+    const setTimelineState = editPhaseIndex !== null ? setEditPhase : setNewTimeline;
+
+    const updatedMilestones = timelineState.milestones.map((milestone, idx) =>
+      idx === index ? { ...milestone, [field]: value } : milestone
+    );
+
+    setTimelineState({
+      ...timelineState,
+      milestones: updatedMilestones,
+    });
   };
 
   const handleRemovePhoto = (photoId) => {
@@ -735,27 +838,23 @@ export default function Projects({ data }) {
     setShowTimelineForm(true);
   };
 
-  const handlePhaseEditSubmit = (e) => {
-    e.preventDefault();
+  const handleRemovePhase = (index) => {
+    if (window.confirm('Tem certeza que deseja remover esta fase?')) {
+      const updatedTimeline = selectedProject.timeline.filter((_, idx) => idx !== index);
 
-    const updatedTimeline = selectedProject.timeline.map((phase, index) =>
-      index === editPhaseIndex ? editPhase : phase
-    );
+      setSelectedProject((prev) => ({
+        ...prev,
+        timeline: updatedTimeline,
+      }));
 
-    setSelectedProject((prev) => ({
-      ...prev,
-      timeline: updatedTimeline,
-    }));
+      setProjects((prevProjects) =>
+        prevProjects.map((p) =>
+          p.id === selectedProject.id ? { ...p, timeline: updatedTimeline } : p
+        )
+      );
 
-    setProjects((prevProjects) =>
-      prevProjects.map((p) =>
-        p.id === selectedProject.id ? { ...p, timeline: updatedTimeline } : p
-      )
-    );
-
-    setEditPhaseIndex(null);
-    setEditPhase(null);
-    setShowTimelineForm(false);
+      updateProjectProgress(selectedProject.id);
+    }
   };
 
   const renderTimeline = () => (
@@ -780,13 +879,23 @@ export default function Projects({ data }) {
                 <Clock className="h-5 w-5 mr-2" />
                 {phase.phase}
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleEditPhase(index)}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEditPhase(index)}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600"
+                  onClick={() => handleRemovePhase(index)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -798,7 +907,12 @@ export default function Projects({ data }) {
 
               <div>
                 <span className="text-sm text-gray-600">Progresso</span>
-                <Progress value={phase.progress} className="mt-1" />
+                <div className="flex items-center mt-1">
+                  <Progress value={phase.progress} className="flex-1" />
+                  <span className="ml-2 text-sm font-semibold text-gray-700">
+                    {phase.progress}%
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -855,8 +969,20 @@ export default function Projects({ data }) {
 
       {showTimelineForm && (
         <TimelineForm
-          onSubmit={editPhaseIndex !== null ? handlePhaseEditSubmit : handleTimelineSubmit}
-          onCancel={() => setShowTimelineForm(false)}
+          onSubmit={handleTimelineSubmit}
+          onCancel={() => {
+            setShowTimelineForm(false);
+            setNewTimeline({
+              phase: '',
+              startDate: '',
+              endDate: '',
+              progress: 0,
+              milestones: [],
+              tasks: [],
+            });
+            setEditPhaseIndex(null);
+            setEditPhase(null);
+          }}
           newTimeline={editPhaseIndex !== null ? editPhase : newTimeline}
           setNewTimeline={editPhaseIndex !== null ? setEditPhase : setNewTimeline}
           newMilestone={newMilestone}
@@ -865,6 +991,10 @@ export default function Projects({ data }) {
           setNewTask={setNewTask}
           handleAddMilestone={handleAddMilestone}
           handleAddTask={handleAddTask}
+          handleRemoveMilestone={handleRemoveMilestone}
+          handleRemoveTask={handleRemoveTask}
+          handleTaskChange={handleTaskChange}
+          handleMilestoneChange={handleMilestoneChange}
         />
       )}
     </div>
@@ -1083,7 +1213,9 @@ export default function Projects({ data }) {
                 <CheckSquare className="h-6 w-6 text-blue-600" />
               </div>
             </div>
-            <Progress value={selectedProject.progress} className="mt-2" />
+            <div className="mt-2">
+              <Progress value={selectedProject.progress} className="w-full" />
+            </div>
           </CardContent>
         </Card>
 
@@ -1100,10 +1232,12 @@ export default function Projects({ data }) {
                 <DollarSign className="h-6 w-6 text-green-600" />
               </div>
             </div>
-            <Progress
-              value={(selectedProject.spent / selectedProject.budget) * 100}
-              className="mt-2"
-            />
+            <div className="mt-2">
+              <Progress
+                value={(selectedProject.spent / selectedProject.budget) * 100}
+                className="w-full"
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -1112,13 +1246,20 @@ export default function Projects({ data }) {
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-sm text-gray-600">Tempo Decorrido</p>
-                <p className="text-2xl font-bold">45%</p>
+                <p className="text-2xl font-bold">
+                  {calculateElapsedTime(selectedProject)}%
+                </p>
               </div>
               <div className="p-2 bg-yellow-100 rounded-full">
                 <Clock className="h-6 w-6 text-yellow-600" />
               </div>
             </div>
-            <Progress value={45} className="mt-2" />
+            <div className="mt-2">
+              <Progress
+                value={calculateElapsedTime(selectedProject)}
+                className="w-full"
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -1179,7 +1320,12 @@ export default function Projects({ data }) {
                     <p className="font-medium">{phase.phase}</p>
                     <p className="text-sm text-gray-500">{phase.progress}% concluído</p>
                   </div>
-                  <Progress value={phase.progress} className="w-24" />
+                  <div className="flex items-center">
+                    <Progress value={phase.progress} className="w-24" />
+                    <span className="ml-2 text-sm font-semibold text-gray-700">
+                      {phase.progress}%
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1188,6 +1334,20 @@ export default function Projects({ data }) {
       </div>
     </div>
   );
+
+  const calculateElapsedTime = (project) => {
+    const start = new Date(project.startDate);
+    const end = new Date(project.estimatedEndDate);
+    const now = new Date();
+
+    if (now < start) return 0;
+    if (now > end) return 100;
+
+    const totalDuration = end - start;
+    const elapsed = now - start;
+
+    return ((elapsed / totalDuration) * 100).toFixed(2);
+  };
 
   const renderContent = () => {
     if (!selectedProject) return null;
@@ -1253,58 +1413,74 @@ export default function Projects({ data }) {
           {renderContent()}
         </>
       ) : (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => (
-            <Card
-              key={project.id}
-              className="bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              <CardHeader>
-                <CardTitle className="text-xl text-gray-800">{project.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Status</p>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        getStatusColor(project.status)
-                      }`}
+        <div>
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project) => (
+              <Card
+                key={project.id}
+                className="bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <CardHeader>
+                  <CardTitle className="text-xl text-gray-800 flex justify-between items-center">
+                    {project.name}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditProjectName({ ...project })}
                     >
-                      {getStatusText(project.status)}
-                    </span>
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-gray-500">Progresso Geral</p>
-                    <Progress value={project.progress} className="mt-1" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
                     <div>
-                      <p className="text-gray-500">Início</p>
-                      <p className="font-medium">
-                        {new Date(project.startDate).toLocaleDateString()}
-                      </p>
+                      <p className="text-sm text-gray-500">Status</p>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          getStatusColor(project.status)
+                        }`}
+                      >
+                        {getStatusText(project.status)}
+                      </span>
                     </div>
-                    <div>
-                      <p className="text-gray-500">Término Previsto</p>
-                      <p className="font-medium">
-                        {new Date(project.estimatedEndDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
 
-                  <Button
-                    onClick={() => handleProjectSelect(project)}
-                    className="w-full bg-teal-500 hover:bg-teal-600 text-white"
-                  >
-                    Ver Detalhes
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    <div>
+                      <p className="text-sm text-gray-500">Progresso Geral</p>
+                      <div className="flex items-center mt-1">
+                        <Progress value={project.progress} className="flex-1" />
+                        <span className="ml-2 text-sm font-semibold text-gray-700">
+                          {project.progress}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Início</p>
+                        <p className="font-medium">
+                          {new Date(project.startDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Término Previsto</p>
+                        <p className="font-medium">
+                          {new Date(project.estimatedEndDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={() => handleProjectSelect(project)}
+                      className="w-full bg-teal-500 hover:bg-teal-600 text-white"
+                    >
+                      Ver Detalhes
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
@@ -1314,6 +1490,15 @@ export default function Projects({ data }) {
           onCancel={() => setShowProjectForm(false)}
           newProject={newProject}
           setNewProject={setNewProject}
+        />
+      )}
+
+      {editProject && (
+        <EditProjectNameForm
+          project={editProject}
+          setProject={setEditProject}
+          onSubmit={handleProjectNameSubmit}
+          onCancel={() => setEditProject(null)}
         />
       )}
     </div>
@@ -1511,6 +1696,46 @@ function ProjectForm({ onSubmit, onCancel, newProject, setNewProject }) {
   );
 }
 
+function EditProjectNameForm({ project, setProject, onSubmit, onCancel }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+      <Card className="w-full max-w-md bg-white shadow-lg">
+        <CardHeader>
+          <CardTitle>Editar Nome da Obra</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="projectName">Nome da Obra</Label>
+              <Input
+                id="projectName"
+                value={project.name}
+                onChange={(e) => setProject({ ...project, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                onClick={onCancel}
+                className="bg-gray-500 hover:bg-gray-600 text-white"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-teal-500 hover:bg-teal-600 text-white"
+              >
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function DocumentForm({ onSubmit, onCancel, newDocument, setNewDocument }) {
   const [documentTypeOptions, setDocumentTypeOptions] = useState(documentTypes);
 
@@ -1631,6 +1856,10 @@ function TimelineForm({
   setNewTask,
   handleAddMilestone,
   handleAddTask,
+  handleRemoveMilestone,
+  handleRemoveTask,
+  handleTaskChange,
+  handleMilestoneChange,
 }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center">
@@ -1689,6 +1918,7 @@ function TimelineForm({
                     setNewTimeline({ ...newTimeline, progress: e.target.value })
                   }
                   required
+                  disabled
                 />
               </div>
             </div>
@@ -1698,12 +1928,39 @@ function TimelineForm({
               <div className="space-y-2">
                 {newTimeline.milestones.map((milestone, idx) => (
                   <div key={idx} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">{milestone.description}</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(milestone.date).toLocaleDateString()}
-                      </p>
+                    <div className="flex-1">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <Label>Data do Marco</Label>
+                          <Input
+                            type="date"
+                            value={milestone.date}
+                            onChange={(e) =>
+                              handleMilestoneChange(idx, 'date', e.target.value)
+                            }
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label>Descrição</Label>
+                          <Input
+                            value={milestone.description}
+                            onChange={(e) =>
+                              handleMilestoneChange(idx, 'description', e.target.value)
+                            }
+                            required
+                          />
+                        </div>
+                      </div>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600"
+                      onClick={() => handleRemoveMilestone(idx)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 ))}
 
@@ -1748,16 +2005,58 @@ function TimelineForm({
               <div className="space-y-2">
                 {newTimeline.tasks.map((task, idx) => (
                   <div key={idx} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">{task.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {task.progress}% - {task.status}
-                      </p>
+                    <div className="flex-1">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div>
+                          <Label>Nome da Tarefa</Label>
+                          <Input
+                            value={task.name}
+                            onChange={(e) =>
+                              handleTaskChange(idx, 'name', e.target.value)
+                            }
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label>Status</Label>
+                          <select
+                            value={task.status}
+                            onChange={(e) =>
+                              handleTaskChange(idx, 'status', e.target.value)
+                            }
+                            className="w-full border border-gray-300 rounded px-2 py-1"
+                            required
+                          >
+                            <option value="pending">Pendente</option>
+                            <option value="in_progress">Em Progresso</option>
+                            <option value="completed">Concluída</option>
+                          </select>
+                        </div>
+                        <div>
+                          <Label>Progresso (%)</Label>
+                          <Input
+                            type="number"
+                            value={task.progress}
+                            onChange={(e) =>
+                              handleTaskChange(idx, 'progress', e.target.value)
+                            }
+                            required
+                          />
+                        </div>
+                      </div>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600"
+                      onClick={() => handleRemoveTask(idx)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 ))}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="taskName">Nome da Tarefa</Label>
                     <Input
