@@ -1,74 +1,130 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Label } from '@/components/ui/Label';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
-import { Building, Calendar, Clock, MapPin, Plus, Trash2 } from 'lucide-react';
+import { Building, Calendar, Clock, Plus, Trash2, AlertTriangle } from 'lucide-react';
 
-export default function Visits({ data }) {
+const formatDate = (date) => {
+  return new Date(date).toLocaleDateString();
+};
+
+export default function Visits() {
   const [activeProject, setActiveProject] = useState('overview');
+  const [projects, setProjects] = useState([]);
   const [newVisit, setNewVisit] = useState({
     date: '',
     time: '',
-    projectId: '',
     purpose: '',
     participants: '',
     location: '',
     observations: '',
   });
 
-  // Mock data - em produção, viria das props
-  const projects = [
-    {
-      id: 1,
-      name: 'Edifício Horizonte',
-      visits: [
-        {
-          id: 1,
-          date: '2024-03-25',
-          time: '14:00',
-          purpose: 'Vistoria Estrutural',
-          participants: 'João Silva, Maria Santos',
-          location: 'Pavimento 3',
-          observations: 'Verificação das instalações elétricas',
-        },
-        {
-          id: 2,
-          date: '2024-03-28',
-          time: '09:00',
-          purpose: 'Medição Mensal',
-          participants: 'Carlos Oliveira',
-          location: 'Obra completa',
-          observations: 'Medição para faturamento',
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: 'Residencial Parque Verde',
-      visits: [
-        {
-          id: 3,
-          date: '2024-03-26',
-          time: '10:00',
-          purpose: 'Inspeção de Qualidade',
-          participants: 'Ana Paula, Roberto Carlos',
-          location: 'Área comum',
-          observations: 'Verificação dos acabamentos',
-        },
-      ],
-    },
-  ];
+  // Carrega os projetos do localStorage
+  // Dados mockados para os empreendimentos iniciais
+  const initialVisits = {
+    'Edifício Horizonte': [
+      {
+        id: 1,
+        date: '2024-03-25',
+        time: '14:00',
+        purpose: 'Vistoria Estrutural',
+        participants: 'João Silva, Maria Santos',
+        location: 'Pavimento 3',
+        observations: 'Verificação das instalações elétricas',
+      },
+      {
+        id: 2,
+        date: '2024-03-28',
+        time: '09:00',
+        purpose: 'Medição Mensal',
+        participants: 'Carlos Oliveira',
+        location: 'Obra completa',
+        observations: 'Medição para faturamento',
+      },
+    ],
+    'Residencial Parque Verde': [
+      {
+        id: 3,
+        date: '2024-03-26',
+        time: '10:00',
+        purpose: 'Inspeção de Qualidade',
+        participants: 'Ana Paula, Roberto Carlos',
+        location: 'Área comum',
+        observations: 'Verificação dos acabamentos',
+      },
+    ]
+  };
+
+  useEffect(() => {
+    const loadProjects = () => {
+      const savedProjects = localStorage.getItem('projects');
+      if (savedProjects) {
+        try {
+          const parsedProjects = JSON.parse(savedProjects);
+          setProjects(parsedProjects.map(project => {
+            // Se for um dos projetos iniciais e não tiver visitas ainda, usa os dados mockados
+            if (initialVisits[project.name] && !project.visits) {
+              return {
+                ...project,
+                visits: initialVisits[project.name]
+              };
+            }
+            // Para novos projetos ou projetos que já têm visitas, mantém como está
+            return {
+              ...project,
+              visits: project.visits || []
+            };
+          }));
+        } catch (error) {
+          console.error('Erro ao carregar projetos:', error);
+          setProjects([]);
+        }
+      }
+    };
+
+    loadProjects();
+
+    // Adiciona listener para mudanças no localStorage
+    const handleStorageChange = () => {
+      loadProjects();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Função para atualizar o localStorage
+  const updateLocalStorage = (updatedProjects) => {
+    localStorage.setItem('projects', JSON.stringify(updatedProjects));
+    setProjects(updatedProjects);
+  };
 
   const handleAddVisit = (e) => {
     e.preventDefault();
-    // Lógica para adicionar visita
-    console.log('Nova visita:', newVisit);
+    
+    const newVisitObj = {
+      id: Date.now(),
+      ...newVisit
+    };
+
+    const updatedProjects = projects.map(project => {
+      if (project.id === activeProject) {
+        return {
+          ...project,
+          visits: [...(project.visits || []), newVisitObj]
+        };
+      }
+      return project;
+    });
+
+    updateLocalStorage(updatedProjects);
+
     setNewVisit({
       date: '',
       time: '',
-      projectId: '',
       purpose: '',
       participants: '',
       location: '',
@@ -76,7 +132,21 @@ export default function Visits({ data }) {
     });
   };
 
-  const renderVisitsTable = (visits) => (
+  const handleDeleteVisit = (projectId, visitId) => {
+    const updatedProjects = projects.map(project => {
+      if (project.id === projectId) {
+        return {
+          ...project,
+          visits: (project.visits || []).filter(visit => visit.id !== visitId)
+        };
+      }
+      return project;
+    });
+
+    updateLocalStorage(updatedProjects);
+  };
+
+  const renderVisitsTable = (visits, projectId = null) => (
     <Table>
       <TableHeader>
         <TableRow>
@@ -92,7 +162,7 @@ export default function Visits({ data }) {
       <TableBody>
         {visits.map((visit) => (
           <TableRow key={visit.id}>
-            <TableCell>{new Date(visit.date).toLocaleDateString()}</TableCell>
+            <TableCell>{formatDate(visit.date)}</TableCell>
             <TableCell>{visit.time}</TableCell>
             <TableCell>{visit.purpose}</TableCell>
             <TableCell>{visit.participants}</TableCell>
@@ -100,7 +170,7 @@ export default function Visits({ data }) {
             <TableCell>{visit.observations}</TableCell>
             <TableCell>
               <Button
-                onClick={() => {/* Lógica para deletar */}}
+                onClick={() => handleDeleteVisit(projectId || visit.projectId, visit.id)}
                 variant="ghost"
                 size="sm"
                 className="text-red-600 hover:text-red-700"
@@ -211,8 +281,8 @@ export default function Visits({ data }) {
             <CardTitle className="text-xl text-gray-800">Visitas Agendadas - {project.name}</CardTitle>
           </CardHeader>
           <CardContent>
-            {project.visits.length > 0 ? (
-              renderVisitsTable(project.visits)
+            {project.visits && project.visits.length > 0 ? (
+              renderVisitsTable(project.visits, project.id)
             ) : (
               <p className="text-gray-500 text-center py-4">Nenhuma visita agendada para este projeto.</p>
             )}
@@ -238,11 +308,15 @@ export default function Visits({ data }) {
               <div className="space-y-2">
                 <div className="flex items-center text-gray-600">
                   <Calendar className="h-4 w-4 mr-2" />
-                  <span>{project.visits.length} visitas agendadas</span>
+                  <span>{(project.visits || []).length} visitas agendadas</span>
                 </div>
                 <div className="flex items-center text-gray-600">
                   <Clock className="h-4 w-4 mr-2" />
-                  <span>Próxima: {project.visits[0]?.date ? new Date(project.visits[0].date).toLocaleDateString() : 'Nenhuma'}</span>
+                  <span>
+                    Próxima: {project.visits && project.visits[0]?.date 
+                      ? formatDate(project.visits[0].date) 
+                      : 'Nenhuma'}
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -255,16 +329,35 @@ export default function Visits({ data }) {
           <CardTitle className="text-xl text-gray-800">Todas as Visitas Agendadas</CardTitle>
         </CardHeader>
         <CardContent>
-          {renderVisitsTable(projects.flatMap(project => 
-            project.visits.map(visit => ({
-              ...visit,
-              projectName: project.name,
-            }))
-          ))}
+          {renderVisitsTable(
+            projects.flatMap(project => 
+              (project.visits || []).map(visit => ({
+                ...visit,
+                projectId: project.id,
+                projectName: project.name,
+              }))
+            )
+          )}
         </CardContent>
       </Card>
     </div>
   );
+
+  // Verifica se não há projetos
+  if (projects.length === 0) {
+    return (
+      <div className="p-6">
+        <Card className="bg-amber-50 border border-amber-200">
+          <CardContent className="flex items-center justify-center p-6">
+            <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
+            <p className="text-amber-700">
+              Nenhuma obra cadastrada. Adicione uma obra primeiro para gerenciar visitas.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <>
