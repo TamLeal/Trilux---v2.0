@@ -9,14 +9,6 @@ import { Label } from '@/components/ui/Label';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/Table';
-import {
   Building,
   Calendar,
   Clock,
@@ -301,7 +293,7 @@ export default function Visits() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddVisit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <Label htmlFor="date">Data da Visita</Label>
                     <Input
@@ -330,7 +322,7 @@ export default function Visits() {
                     />
                   </div>
 
-                  <div className="sm:col-span-2">
+                  <div>
                     <Label htmlFor="purpose">Finalidade</Label>
                     <Input
                       id="purpose"
@@ -343,7 +335,7 @@ export default function Visits() {
                     />
                   </div>
 
-                  <div className="sm:col-span-2">
+                  <div>
                     <Label htmlFor="participants">Participantes</Label>
                     <Input
                       id="participants"
@@ -359,7 +351,7 @@ export default function Visits() {
                     />
                   </div>
 
-                  <div className="sm:col-span-2">
+                  <div>
                     <Label htmlFor="location">Local Específico</Label>
                     <Input
                       id="location"
@@ -372,7 +364,7 @@ export default function Visits() {
                     />
                   </div>
 
-                  <div className="sm:col-span-2">
+                  <div>
                     <Label htmlFor="observations">Observações</Label>
                     <textarea
                       id="observations"
@@ -489,7 +481,8 @@ export default function Visits() {
                                     <div>
                                       <p className="font-medium">
                                         {expenseTypes.find(
-                                          (type) => type.value === expense.type
+                                          (type) =>
+                                            type.value === expense.type
                                         )?.label || expense.type}{' '}
                                         - {formatCurrency(expense.amount)}
                                       </p>
@@ -788,17 +781,17 @@ export default function Visits() {
   }
 
   return (
-    <>
+    <div className="overflow-x-hidden">
       <h2 className="text-3xl font-bold mb-6 text-gray-800">
         Visitas Agendadas
       </h2>
 
       {/* Navegação por Abas */}
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="flex space-x-4">
+      <div className="mb-6 border-b border-gray-200 overflow-x-auto max-w-full">
+        <nav className="flex space-x-4 flex-nowrap">
           <Button
             onClick={() => setActiveProject('overview')}
-            className={`px-4 py-2 font-medium rounded-t-lg transition-colors duration-300 ${
+            className={`px-4 py-2 font-medium rounded-t-lg transition-colors duration-300 flex-shrink-0 ${
               activeProject === 'overview'
                 ? 'bg-white text-teal-600 border-b-2 border-teal-500'
                 : 'text-gray-500 hover:text-gray-700'
@@ -811,7 +804,7 @@ export default function Visits() {
             <Button
               key={project.id}
               onClick={() => setActiveProject(project.id)}
-              className={`px-4 py-2 font-medium rounded-t-lg transition-colors duration-300 ${
+              className={`px-4 py-2 font-medium rounded-t-lg transition-colors duration-300 flex-shrink-0 ${
                 activeProject === project.id
                   ? 'bg-white text-teal-600 border-b-2 border-teal-500'
                   : 'text-gray-500 hover:text-gray-700'
@@ -827,6 +820,6 @@ export default function Visits() {
       {activeProject === 'overview'
         ? renderOverview()
         : renderProjectContent(activeProject)}
-    </>
+    </div>
   );
 }
