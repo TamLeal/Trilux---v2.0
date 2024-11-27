@@ -57,31 +57,21 @@ export default function Materials({ data }) {
       if (savedProjects) {
         try {
           const parsedProjects = JSON.parse(savedProjects);
-    
-          // Certifique-se de que todos os números sejam convertidos corretamente
-          const projectsWithMaterials = parsedProjects.map((project) => {
-            return {
-              ...project,
-              materials: (project.materials || []).map((material) => ({
-                ...material,
-                quantity: parseFloat(material.quantity) || 0,
-                unitPrice: parseFloat(material.unitPrice) || 0,
-              })),
-            };
-          });
-    
-          // Adicione materiais iniciais, se necessário
-          const projectsWithInitialData = projectsWithMaterials.map((project) => {
+          // Mapeia os projetos e adiciona os materiais iniciais se necessário
+          const projectsWithMaterials = parsedProjects.map(project => {
             if (initialMaterialsData[project.name] && !project.materials) {
               return {
                 ...project,
-                materials: initialMaterialsData[project.name],
+                materials: initialMaterialsData[project.name]
               };
             }
-            return project;
+            // Se já tiver materiais ou não for um projeto inicial, mantém como está
+            return {
+              ...project,
+              materials: project.materials || []
+            };
           });
-    
-          setProjects(projectsWithInitialData);
+          setProjects(projectsWithMaterials);
         } catch (error) {
           console.error('Erro ao carregar projetos:', error);
           setProjects([]);
@@ -481,7 +471,7 @@ export default function Materials({ data }) {
     return (
       <div className="space-y-6">
         {/* Cards dos Projetos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {projects.map((project) => {
             const materialCount = (project.materials || []).length;
             const alertCount = (project.materials || []).filter(m => m.quantity <= m.minQuantity).length;
