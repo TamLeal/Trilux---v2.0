@@ -39,15 +39,21 @@ export default function Materials({ data }) {
   const [editingMaterial, setEditingMaterial] = useState(null);
   const [editedMaterial, setEditedMaterial] = useState({});
 
+  // Função para gerar IDs únicos
+  const generateUniqueId = (materials = []) => {
+    const existingIds = materials.map(m => m.id);
+    return Math.max(...existingIds, 0) + 1;
+  };
+
   // Dados iniciais de materiais para projetos pré-existentes
   const initialMaterialsData = {
     'Edifício Horizonte': [
-      { id: 1, name: 'Cimento', quantity: 100, unit: 'sacos', unitPrice: 25, supplier: 'Votorantim', category: 'Básico' },
-      { id: 2, name: 'Vergalhões', quantity: 50, unit: 'barras', unitPrice: 45, supplier: 'Gerdau', category: 'Ferro' },
+      { id: generateUniqueId(), name: 'Cimento', quantity: 100, unit: 'sacos', unitPrice: 25, supplier: 'Votorantim', category: 'Básico', minQuantity: 20 },
+      { id: generateUniqueId(), name: 'Vergalhões', quantity: 50, unit: 'barras', unitPrice: 45, supplier: 'Gerdau', category: 'Ferro', minQuantity: 10 },
     ],
     'Residencial Parque Verde': [
-      { id: 3, name: 'Tijolos', quantity: 5000, unit: 'unidades', unitPrice: 0.5, supplier: 'Cerâmica Silva', category: 'Alvenaria' },
-      { id: 4, name: 'Areia', quantity: 30, unit: 'm³', unitPrice: 120, supplier: 'Areial Central', category: 'Básico' },
+      { id: generateUniqueId(), name: 'Tijolos', quantity: 5000, unit: 'unidades', unitPrice: 0.5, supplier: 'Cerâmica Silva', category: 'Alvenaria', minQuantity: 1000 },
+      { id: generateUniqueId(), name: 'Areia', quantity: 30, unit: 'm³', unitPrice: 120, supplier: 'Areial Central', category: 'Básico', minQuantity: 6 },
     ],
   };
 
@@ -57,18 +63,22 @@ export default function Materials({ data }) {
       if (savedProjects) {
         try {
           const parsedProjects = JSON.parse(savedProjects);
-          // Mapeia os projetos e adiciona os materiais iniciais se necessário
           const projectsWithMaterials = parsedProjects.map(project => {
             if (initialMaterialsData[project.name] && !project.materials) {
               return {
                 ...project,
-                materials: initialMaterialsData[project.name]
+                materials: initialMaterialsData[project.name].map(material => ({
+                  ...material,
+                  id: generateUniqueId(project.materials || [])
+                }))
               };
             }
-            // Se já tiver materiais ou não for um projeto inicial, mantém como está
             return {
               ...project,
-              materials: project.materials || []
+              materials: (project.materials || []).map(material => ({
+                ...material,
+                id: material.id || generateUniqueId(project.materials)
+              }))
             };
           });
           setProjects(projectsWithMaterials);
@@ -80,11 +90,61 @@ export default function Materials({ data }) {
     };
 
     loadProjects();
-
-    // Adiciona listener para mudanças no localStorage
     window.addEventListener('storage', loadProjects);
     return () => window.removeEventListener('storage', loadProjects);
   }, []);
+
+  const handleAddMaterial = (e, projectId) => {
+    e.preventDefault();
+    
+    const updatedProjects = projects.map(project => {
+      if (project.id === projectId) {
+        const currentMaterials = project.materials || [];
+        const newId = generateUniqueId(currentMaterials);
+        const minQuantity = Math.ceil(parseFloat(newMaterial.quantity) * 0.2); // 20% da quantidade inicial
+
+        return {
+          ...project,
+          materials: [
+            ...currentMaterials,
+            {
+              ...newMaterial,
+              id: newId,
+              quantity: parseFloat(newMaterial.quantity),
+              unitPrice: parseFloat(newMaterial.unitPrice),
+              minQuantity
+            }
+          ]
+        };
+      }
+      return project;
+    });
+
+    updateLocalStorage(updatedProjects);
+    setNewMaterial({
+      name: '',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      supplier: '',
+      category: '',
+      projectId: '',
+    });
+  };
+
+  const handleDeleteMaterial = (materialId, projectId) => {
+    const updatedProjects = projects.map(project => {
+      if (project.id === projectId) {
+        return {
+          ...project,
+          materials: (project.materials || []).filter(material => material.id !== materialId)
+        };
+      }
+      return project;
+    });
+
+    updateLocalStorage(updatedProjects);
+  };
 
   const updateLocalStorage = (updatedProjects) => {
     localStorage.setItem('projects', JSON.stringify(updatedProjects));
@@ -242,6 +302,11 @@ export default function Materials({ data }) {
                   variant="ghost"
                   size="sm"
                   className="text-red-600 hover:text-red-700"
+                  onClick={() => {
+                    if (window.confirm(`Tem certeza que deseja excluir ${material.name}?`)) {
+                      handleDeleteMaterial(material.id, projectId);
+                    }
+                  }}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
