@@ -32,7 +32,6 @@ export default function Materials({ data }) {
     quantity: '',
     unit: '',
     unitPrice: '',
-    minQuantity: '',
     supplier: '',
     category: '',
     projectId: '',
@@ -43,12 +42,12 @@ export default function Materials({ data }) {
   // Dados iniciais de materiais para projetos pré-existentes
   const initialMaterialsData = {
     'Edifício Horizonte': [
-      { id: 1, name: 'Cimento', quantity: 100, unit: 'sacos', unitPrice: 25, minQuantity: 20, supplier: 'Votorantim', category: 'Básico' },
-      { id: 2, name: 'Vergalhões', quantity: 50, unit: 'barras', unitPrice: 45, minQuantity: 10, supplier: 'Gerdau', category: 'Ferro' },
+      { id: 1, name: 'Cimento', quantity: 100, unit: 'sacos', unitPrice: 25, supplier: 'Votorantim', category: 'Básico' },
+      { id: 2, name: 'Vergalhões', quantity: 50, unit: 'barras', unitPrice: 45, supplier: 'Gerdau', category: 'Ferro' },
     ],
     'Residencial Parque Verde': [
-      { id: 3, name: 'Tijolos', quantity: 5000, unit: 'unidades', unitPrice: 0.5, minQuantity: 1000, supplier: 'Cerâmica Silva', category: 'Alvenaria' },
-      { id: 4, name: 'Areia', quantity: 30, unit: 'm³', unitPrice: 120, minQuantity: 5, supplier: 'Areial Central', category: 'Básico' },
+      { id: 3, name: 'Tijolos', quantity: 5000, unit: 'unidades', unitPrice: 0.5, supplier: 'Cerâmica Silva', category: 'Alvenaria' },
+      { id: 4, name: 'Areia', quantity: 30, unit: 'm³', unitPrice: 120, supplier: 'Areial Central', category: 'Básico' },
     ],
   };
 
@@ -188,11 +187,16 @@ export default function Materials({ data }) {
                 R$ {(editedMaterial.quantity * editedMaterial.unitPrice).toFixed(2)}
               </TableCell>
               <TableCell>
-                <Input
-                  type="number"
-                  value={editedMaterial.minQuantity}
-                  onChange={(e) => setEditedMaterial({ ...editedMaterial, minQuantity: e.target.value })}
-                />
+                {editedMaterial.quantity <= editedMaterial.minQuantity ? (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    <AlertTriangle className="w-4 h-4 mr-1" />
+                    Baixo Estoque
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Regular
+                  </span>
+                )}
               </TableCell>
               <TableCell>
                 <Button
@@ -356,18 +360,6 @@ export default function Materials({ data }) {
                     step="0.01"
                     value={newMaterial.unitPrice}
                     onChange={(e) => setNewMaterial({ ...newMaterial, unitPrice: e.target.value })}
-                    className="border-gray-300"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="minQuantity">Quantidade Mínima</Label>
-                  <Input
-                    id="minQuantity"
-                    type="number"
-                    value={newMaterial.minQuantity}
-                    onChange={(e) => setNewMaterial({ ...newMaterial, minQuantity: e.target.value })}
                     className="border-gray-300"
                     required
                   />
