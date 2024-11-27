@@ -37,6 +37,8 @@ export default function Materials({ data }) {
     category: '',
     projectId: '',
   });
+  const [editingMaterial, setEditingMaterial] = useState(null);
+  const [editedMaterial, setEditedMaterial] = useState({});
 
   // Dados iniciais de materiais para projetos pré-existentes
   const initialMaterialsData = {
@@ -100,7 +102,30 @@ export default function Materials({ data }) {
     'Outros',
   ];
 
-  const renderMaterialsTable = (materials) => (
+  const handleEditMaterial = (material, projectId) => {
+    setEditingMaterial(material.id);
+    setEditedMaterial({ ...material, projectId });
+  };
+
+  const handleSaveEditedMaterial = (e, projectId) => {
+    e.preventDefault();
+    const updatedProjects = projects.map(project => {
+      if (project.id === projectId) {
+        return {
+          ...project,
+          materials: project.materials.map(material => 
+            material.id === editingMaterial ? editedMaterial : material
+          )
+        };
+      }
+      return project;
+    });
+    updateLocalStorage(updatedProjects);
+    setEditingMaterial(null);
+    setEditedMaterial({});
+  };
+
+  const renderMaterialsTable = (materials, projectId) => (
     <Table>
       <TableHeader>
         <TableRow>
@@ -116,35 +141,109 @@ export default function Materials({ data }) {
       </TableHeader>
       <TableBody>
         {materials.map((material) => (
-          <TableRow key={material.id}>
-            <TableCell className="font-medium">{material.name}</TableCell>
-            <TableCell>{material.category}</TableCell>
-            <TableCell>{material.quantity}</TableCell>
-            <TableCell>{material.unit}</TableCell>
-            <TableCell>R$ {material.unitPrice.toFixed(2)}</TableCell>
-            <TableCell>R$ {(material.quantity * material.unitPrice).toFixed(2)}</TableCell>
-            <TableCell>
-              {material.quantity <= material.minQuantity ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                  <AlertTriangle className="w-4 h-4 mr-1" />
-                  Baixo Estoque
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Regular
-                </span>
-              )}
-            </TableCell>
-            <TableCell>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </TableCell>
-          </TableRow>
+          editingMaterial === material.id ? (
+            <TableRow key={material.id}>
+              <TableCell>
+                <Input
+                  value={editedMaterial.name}
+                  onChange={(e) => setEditedMaterial({ ...editedMaterial, name: e.target.value })}
+                />
+              </TableCell>
+              <TableCell>
+                <select
+                  value={editedMaterial.category}
+                  onChange={(e) => setEditedMaterial({ ...editedMaterial, category: e.target.value })}
+                  className="w-full border border-gray-300 rounded px-2 py-1"
+                >
+                  <option value="">Selecione uma categoria</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </TableCell>
+              <TableCell>
+                <Input
+                  type="number"
+                  value={editedMaterial.quantity}
+                  onChange={(e) => setEditedMaterial({ ...editedMaterial, quantity: e.target.value })}
+                />
+              </TableCell>
+              <TableCell>
+                <Input
+                  value={editedMaterial.unit}
+                  onChange={(e) => setEditedMaterial({ ...editedMaterial, unit: e.target.value })}
+                />
+              </TableCell>
+              <TableCell>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editedMaterial.unitPrice}
+                  onChange={(e) => setEditedMaterial({ ...editedMaterial, unitPrice: e.target.value })}
+                />
+              </TableCell>
+              <TableCell>
+                R$ {(editedMaterial.quantity * editedMaterial.unitPrice).toFixed(2)}
+              </TableCell>
+              <TableCell>
+                <Input
+                  type="number"
+                  value={editedMaterial.minQuantity}
+                  onChange={(e) => setEditedMaterial({ ...editedMaterial, minQuantity: e.target.value })}
+                />
+              </TableCell>
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-green-600 hover:text-green-700"
+                  onClick={(e) => handleSaveEditedMaterial(e, projectId)}
+                >
+                  Salvar
+                </Button>
+              </TableCell>
+            </TableRow>
+          ) : (
+            <TableRow key={material.id}>
+              <TableCell className="font-medium">{material.name}</TableCell>
+              <TableCell>{material.category}</TableCell>
+              <TableCell>{material.quantity}</TableCell>
+              <TableCell>{material.unit}</TableCell>
+              <TableCell>R$ {material.unitPrice.toFixed(2)}</TableCell>
+              <TableCell>R$ {(material.quantity * material.unitPrice).toFixed(2)}</TableCell>
+              <TableCell>
+                {material.quantity <= material.minQuantity ? (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    <AlertTriangle className="w-4 h-4 mr-1" />
+                    Baixo Estoque
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Regular
+                  </span>
+                )}
+              </TableCell>
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-600 hover:text-gray-700"
+                  onClick={() => handleEditMaterial(material, projectId)}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          )
         ))}
       </TableBody>
     </Table>
@@ -303,7 +402,7 @@ export default function Materials({ data }) {
             <CardTitle className="text-xl text-gray-800">Materiais da Obra</CardTitle>
           </CardHeader>
           <CardContent>
-            {renderMaterialsTable(project.materials || [])}
+            {renderMaterialsTable(project.materials || [], project.id)}
           </CardContent>
         </Card>
 
@@ -484,7 +583,6 @@ export default function Materials({ data }) {
                   <TableHead>Preço Unit.</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -505,15 +603,6 @@ export default function Materials({ data }) {
                         }`}>
                           {material.quantity <= material.minQuantity ? 'Baixo Estoque' : 'Regular'}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
