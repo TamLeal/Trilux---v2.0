@@ -606,4 +606,5 @@ export default function Materials({ data }) {
         ? renderOverview()
         : renderProjectContent(activeProject)}
     </div>
-  );}
+  );
+}
