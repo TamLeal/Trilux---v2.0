@@ -57,21 +57,31 @@ export default function Materials({ data }) {
       if (savedProjects) {
         try {
           const parsedProjects = JSON.parse(savedProjects);
-          // Mapeia os projetos e adiciona os materiais iniciais se necessário
-          const projectsWithMaterials = parsedProjects.map(project => {
+    
+          // Certifique-se de que todos os números sejam convertidos corretamente
+          const projectsWithMaterials = parsedProjects.map((project) => {
+            return {
+              ...project,
+              materials: (project.materials || []).map((material) => ({
+                ...material,
+                quantity: parseFloat(material.quantity) || 0,
+                unitPrice: parseFloat(material.unitPrice) || 0,
+              })),
+            };
+          });
+    
+          // Adicione materiais iniciais, se necessário
+          const projectsWithInitialData = projectsWithMaterials.map((project) => {
             if (initialMaterialsData[project.name] && !project.materials) {
               return {
                 ...project,
-                materials: initialMaterialsData[project.name]
+                materials: initialMaterialsData[project.name],
               };
             }
-            // Se já tiver materiais ou não for um projeto inicial, mantém como está
-            return {
-              ...project,
-              materials: project.materials || []
-            };
+            return project;
           });
-          setProjects(projectsWithMaterials);
+    
+          setProjects(projectsWithInitialData);
         } catch (error) {
           console.error('Erro ao carregar projetos:', error);
           setProjects([]);
