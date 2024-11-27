@@ -134,6 +134,32 @@ export default function Materials({ data }) {
     setEditedMaterial({});
   };
 
+  const handleAddMaterial = (e, projectId) => {
+    e.preventDefault();
+    const updatedProjects = projects.map(project => {
+      if (project.id === projectId) {
+        return {
+          ...project,
+          materials: [
+            ...project.materials,
+            { ...newMaterial, id: Date.now(), quantity: parseFloat(newMaterial.quantity), unitPrice: parseFloat(newMaterial.unitPrice) }
+          ]
+        };
+      }
+      return project;
+    });
+    updateLocalStorage(updatedProjects);
+    setNewMaterial({
+      name: '',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      supplier: '',
+      category: '',
+      projectId: '',
+    });
+  };
+
   const renderMaterialsTable = (materials, projectId) => (
     <Table>
       <TableHeader>
@@ -279,124 +305,126 @@ export default function Materials({ data }) {
 
     return (
       <div className="space-y-6">
-        {/* Card de Orçamento */}
-        <Card className="bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg rounded-lg hover:shadow-xl transition-all duration-300">
-          <CardHeader>
-            <CardTitle className="text-xl text-gray-800">Orçamento de Materiais</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="text-4xl font-bold text-gray-800">
-                R$ {totalGasto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </div>
-              <div>
-                <Progress value={percentualUtilizado} className="h-2" />
-                <p className="text-sm text-gray-600 mt-1">
-                  {percentualUtilizado.toFixed(1)}% do orçamento utilizado
-                </p>
-              </div>
-              <div className="text-sm text-gray-600">
-                Orçamento Total: R$ {(project.materialsBudget || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Formulário de Novo Material */}
-        <Card className="bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg rounded-lg hover:shadow-xl transition-all duration-300">
-          <CardHeader>
-            <CardTitle className="text-xl text-gray-800">Adicionar Novo Material</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={(e) => handleAddMaterial(e, project.id)} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="name">Nome do Material</Label>
-                  <Input
-                    id="name"
-                    value={newMaterial.name}
-                    onChange={(e) => setNewMaterial({ ...newMaterial, name: e.target.value })}
-                    className="border-gray-300"
-                    required
-                  />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Card de Orçamento */}
+          <Card className="bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg rounded-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader>
+              <CardTitle className="text-xl text-gray-800">Orçamento de Materiais</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="text-4xl font-bold text-gray-800">
+                  R$ {totalGasto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </div>
-
                 <div>
-                  <Label htmlFor="category">Categoria</Label>
-                  <select
-                    id="category"
-                    value={newMaterial.category}
-                    onChange={(e) => setNewMaterial({ ...newMaterial, category: e.target.value })}
-                    className="w-full border border-gray-300 rounded px-2 py-1"
-                    required
-                  >
-                    <option value="">Selecione uma categoria</option>
-                    {categories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
+                  <Progress value={percentualUtilizado} className="h-2" />
+                  <p className="text-sm text-gray-600 mt-1">
+                    {percentualUtilizado.toFixed(1)}% do orçamento utilizado
+                  </p>
                 </div>
-
-                <div>
-                  <Label htmlFor="quantity">Quantidade</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    value={newMaterial.quantity}
-                    onChange={(e) => setNewMaterial({ ...newMaterial, quantity: e.target.value })}
-                    className="border-gray-300"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="unit">Unidade</Label>
-                  <Input
-                    id="unit"
-                    value={newMaterial.unit}
-                    onChange={(e) => setNewMaterial({ ...newMaterial, unit: e.target.value })}
-                    className="border-gray-300"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="unitPrice">Preço Unitário (R$)</Label>
-                  <Input
-                    id="unitPrice"
-                    type="number"
-                    step="0.01"
-                    value={newMaterial.unitPrice}
-                    onChange={(e) => setNewMaterial({ ...newMaterial, unitPrice: e.target.value })}
-                    className="border-gray-300"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="supplier">Fornecedor</Label>
-                  <Input
-                    id="supplier"
-                    value={newMaterial.supplier}
-                    onChange={(e) => setNewMaterial({ ...newMaterial, supplier: e.target.value })}
-                    className="border-gray-300"
-                    required
-                  />
+                <div className="text-sm text-gray-600">
+                  Orçamento Total: R$ {(project.materialsBudget || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              <Button
-                type="submit"
-                className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded transition-colors duration-300"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Material
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+          {/* Formulário de Novo Material */}
+          <Card className="bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg rounded-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader>
+              <CardTitle className="text-xl text-gray-800">Adicionar Novo Material</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={(e) => handleAddMaterial(e, project.id)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="name">Nome do Material</Label>
+                    <Input
+                      id="name"
+                      value={newMaterial.name}
+                      onChange={(e) => setNewMaterial({ ...newMaterial, name: e.target.value })}
+                      className="border-gray-300"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="category">Categoria</Label>
+                    <select
+                      id="category"
+                      value={newMaterial.category}
+                      onChange={(e) => setNewMaterial({ ...newMaterial, category: e.target.value })}
+                      className="w-full border border-gray-300 rounded px-2 py-1"
+                      required
+                    >
+                      <option value="">Selecione uma categoria</option>
+                      {categories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="quantity">Quantidade</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      value={newMaterial.quantity}
+                      onChange={(e) => setNewMaterial({ ...newMaterial, quantity: e.target.value })}
+                      className="border-gray-300"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="unit">Unidade</Label>
+                    <Input
+                      id="unit"
+                      value={newMaterial.unit}
+                      onChange={(e) => setNewMaterial({ ...newMaterial, unit: e.target.value })}
+                      className="border-gray-300"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="unitPrice">Preço Unitário (R$)</Label>
+                    <Input
+                      id="unitPrice"
+                      type="number"
+                      step="0.01"
+                      value={newMaterial.unitPrice}
+                      onChange={(e) => setNewMaterial({ ...newMaterial, unitPrice: e.target.value })}
+                      className="border-gray-300"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="supplier">Fornecedor</Label>
+                    <Input
+                      id="supplier"
+                      value={newMaterial.supplier}
+                      onChange={(e) => setNewMaterial({ ...newMaterial, supplier: e.target.value })}
+                      className="border-gray-300"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded transition-colors duration-300"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Material
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Lista de Materiais */}
         <Card className="bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg rounded-lg hover:shadow-xl transition-all duration-300">
