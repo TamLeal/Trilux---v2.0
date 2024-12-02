@@ -549,7 +549,7 @@ export default function Materials({ data }) {
     return (
       <div className="space-y-6">
         {/* Cards dos Projetos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {projects.map((project) => {
             const materialCount = (project.materials || []).length;
             const alertCount = (project.materials || []).filter(m => m.quantity <= m.minQuantity).length;
