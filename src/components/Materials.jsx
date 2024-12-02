@@ -24,6 +24,8 @@ import {
   Edit,
 } from 'lucide-react';
 
+let nextMaterialId = 1; // Contador global para IDs de materiais
+
 export default function Materials({ data }) {
   const [activeProject, setActiveProject] = useState('overview');
   const [projects, setProjects] = useState([]);
@@ -39,21 +41,15 @@ export default function Materials({ data }) {
   const [editingMaterial, setEditingMaterial] = useState(null);
   const [editedMaterial, setEditedMaterial] = useState({});
 
-  // Função para gerar IDs únicos
-  const generateUniqueId = (materials = []) => {
-    const existingIds = materials.map(m => m.id);
-    return Math.max(...existingIds, 0) + 1;
-  };
-
   // Dados iniciais de materiais para projetos pré-existentes
   const initialMaterialsData = {
     'Edifício Horizonte': [
-      { id: generateUniqueId(), name: 'Cimento', quantity: 100, unit: 'sacos', unitPrice: 25, supplier: 'Votorantim', category: 'Básico', minQuantity: 20 },
-      { id: generateUniqueId(), name: 'Vergalhões', quantity: 50, unit: 'barras', unitPrice: 45, supplier: 'Gerdau', category: 'Ferro', minQuantity: 10 },
+      { id: nextMaterialId++, name: 'Cimento', quantity: 100, unit: 'sacos', unitPrice: 25, supplier: 'Votorantim', category: 'Básico', minQuantity: 20 },
+      { id: nextMaterialId++, name: 'Vergalhões', quantity: 50, unit: 'barras', unitPrice: 45, supplier: 'Gerdau', category: 'Ferro', minQuantity: 10 },
     ],
     'Residencial Parque Verde': [
-      { id: generateUniqueId(), name: 'Tijolos', quantity: 5000, unit: 'unidades', unitPrice: 0.5, supplier: 'Cerâmica Silva', category: 'Alvenaria', minQuantity: 1000 },
-      { id: generateUniqueId(), name: 'Areia', quantity: 30, unit: 'm³', unitPrice: 120, supplier: 'Areial Central', category: 'Básico', minQuantity: 6 },
+      { id: nextMaterialId++, name: 'Tijolos', quantity: 5000, unit: 'unidades', unitPrice: 0.5, supplier: 'Cerâmica Silva', category: 'Alvenaria', minQuantity: 1000 },
+      { id: nextMaterialId++, name: 'Areia', quantity: 30, unit: 'm³', unitPrice: 120, supplier: 'Areial Central', category: 'Básico', minQuantity: 6 },
     ],
   };
 
@@ -68,8 +64,7 @@ export default function Materials({ data }) {
               return {
                 ...project,
                 materials: initialMaterialsData[project.name].map(material => ({
-                  ...material,
-                  id: generateUniqueId(project.materials || [])
+                  ...material
                 }))
               };
             }
@@ -77,11 +72,21 @@ export default function Materials({ data }) {
               ...project,
               materials: (project.materials || []).map(material => ({
                 ...material,
-                id: material.id || generateUniqueId(project.materials)
+                id: material.id || nextMaterialId++,
+                quantity: parseFloat(material.quantity),
+                unitPrice: parseFloat(material.unitPrice),
+                minQuantity: parseFloat(material.minQuantity),
               }))
             };
           });
           setProjects(projectsWithMaterials);
+
+          // Atualiza nextMaterialId
+          const allMaterialIds = projectsWithMaterials.flatMap(project => 
+            (project.materials || []).map(material => material.id)
+          );
+          nextMaterialId = Math.max(...allMaterialIds, 0) + 1;
+
         } catch (error) {
           console.error('Erro ao carregar projetos:', error);
           setProjects([]);
@@ -99,19 +104,19 @@ export default function Materials({ data }) {
     
     const updatedProjects = projects.map(project => {
       if (project.id === projectId) {
-        const currentMaterials = project.materials || [];
-        const newId = generateUniqueId(currentMaterials);
-        const minQuantity = Math.ceil(parseFloat(newMaterial.quantity) * 0.2); // 20% da quantidade inicial
+        const quantity = parseFloat(newMaterial.quantity) || 0;
+        const unitPrice = parseFloat(newMaterial.unitPrice) || 0;
+        const minQuantity = Math.ceil(quantity * 0.2); // 20% da quantidade inicial
 
         return {
           ...project,
           materials: [
-            ...currentMaterials,
+            ...(project.materials || []),
             {
               ...newMaterial,
-              id: newId,
-              quantity: parseFloat(newMaterial.quantity),
-              unitPrice: parseFloat(newMaterial.unitPrice),
+              id: nextMaterialId++,
+              quantity,
+              unitPrice,
               minQuantity
             }
           ]
@@ -168,12 +173,17 @@ export default function Materials({ data }) {
 
   const handleSaveEditedMaterial = (e, projectId) => {
     e.preventDefault();
+    const updatedMaterial = {
+      ...editedMaterial,
+      quantity: parseFloat(editedMaterial.quantity) || 0,
+      unitPrice: parseFloat(editedMaterial.unitPrice) || 0,
+    };
     const updatedProjects = projects.map(project => {
       if (project.id === projectId) {
         return {
           ...project,
           materials: project.materials.map(material => 
-            material.id === editingMaterial ? editedMaterial : material
+            material.id === editingMaterial ? updatedMaterial : material
           )
         };
       }
@@ -244,7 +254,7 @@ export default function Materials({ data }) {
                 />
               </TableCell>
               <TableCell>
-                R$ {(editedMaterial.quantity * editedMaterial.unitPrice).toFixed(2)}
+                R$ {(parseFloat(editedMaterial.quantity || 0) * parseFloat(editedMaterial.unitPrice || 0)).toFixed(2)}
               </TableCell>
               <TableCell>
                 {editedMaterial.quantity <= editedMaterial.minQuantity ? (
@@ -275,8 +285,8 @@ export default function Materials({ data }) {
               <TableCell>{material.category}</TableCell>
               <TableCell>{material.quantity}</TableCell>
               <TableCell>{material.unit}</TableCell>
-              <TableCell>R$ {material.unitPrice.toFixed(2)}</TableCell>
-              <TableCell>R$ {(material.quantity * material.unitPrice).toFixed(2)}</TableCell>
+              <TableCell>R$ {parseFloat(material.unitPrice).toFixed(2)}</TableCell>
+              <TableCell>R$ {(parseFloat(material.quantity) * parseFloat(material.unitPrice)).toFixed(2)}</TableCell>
               <TableCell>
                 {material.quantity <= material.minQuantity ? (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -324,7 +334,7 @@ export default function Materials({ data }) {
 
     // Calcula o total gasto em materiais para este projeto
     const totalGasto = (project.materials || []).reduce((sum, material) => 
-      sum + (material.quantity * material.unitPrice), 0
+      sum + (parseFloat(material.quantity) * parseFloat(material.unitPrice)), 0
     );
 
     // Calcula o percentual baseado no orçamento definido
@@ -526,7 +536,7 @@ export default function Materials({ data }) {
     // Calcula o total gasto em materiais para todos os projetos
     const totalGasto = projects.reduce((total, project) => {
       return total + (project.materials || []).reduce((sum, material) => 
-        sum + (material.quantity * material.unitPrice), 0);
+        sum + (parseFloat(material.quantity) * parseFloat(material.unitPrice)), 0);
     }, 0);
 
     // Orçamento total é a soma dos orçamentos de cada projeto
@@ -541,8 +551,8 @@ export default function Materials({ data }) {
             const materialCount = (project.materials || []).length;
             const alertCount = (project.materials || []).filter(m => m.quantity <= m.minQuantity).length;
             const projectTotal = (project.materials || []).reduce((sum, material) => 
-              sum + (material.quantity * material.unitPrice), 0);
-            const orcamentoUtilizado = (projectTotal / (project.budget || orcamentoTotal)) * 100;
+              sum + (parseFloat(material.quantity) * parseFloat(material.unitPrice)), 0);
+            const orcamentoUtilizado = (projectTotal / (project.materialsBudget || orcamentoTotal)) * 100;
 
             return (
               <Card
@@ -650,8 +660,8 @@ export default function Materials({ data }) {
                       <TableCell>{material.category}</TableCell>
                       <TableCell>{material.quantity}</TableCell>
                       <TableCell>{material.unit}</TableCell>
-                      <TableCell>R$ {material.unitPrice.toFixed(2)}</TableCell>
-                      <TableCell>R$ {(material.quantity * material.unitPrice).toFixed(2)}</TableCell>
+                      <TableCell>R$ {parseFloat(material.unitPrice).toFixed(2)}</TableCell>
+                      <TableCell>R$ {(parseFloat(material.quantity) * parseFloat(material.unitPrice)).toFixed(2)}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           material.quantity <= material.minQuantity
