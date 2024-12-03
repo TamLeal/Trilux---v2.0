@@ -754,7 +754,7 @@ export default function Materials({ data }) {
                           }}
                         >
                           <span className="text-sm text-gray-600 mr-2">
-                            Orçamento: R${' '}
+                            Orçamento Estimado: R${' '}
                             {(project.materialsBudget || 0).toLocaleString()}
                           </span>
                           <Edit className="h-4 w-4 text-gray-400" />
