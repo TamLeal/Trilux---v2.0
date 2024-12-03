@@ -43,6 +43,16 @@ export default function Reports({ data }) {
     const budget = parseFloat(project.budget) || 0;
     const spent = parseFloat(project.spent) || 0;
 
+    // Atualiza o gasto com base nos materiais consumidos
+    const materialsSpent = (project.materials || []).reduce(
+      (sum, material) =>
+        sum +
+        parseFloat(material.consumedQuantity || 0) * parseFloat(material.unitPrice || 0),
+      0
+    );
+
+    const totalSpent = spent + materialsSpent;
+
     // Tarefas atrasadas
     const delayedTasks = (project.timeline || []).reduce((count, phase) => {
       const today = new Date();
@@ -57,23 +67,28 @@ export default function Reports({ data }) {
 
     // Trabalhadores ativos (soma das tarefas em progresso)
     const activeWorkers = (project.timeline || []).reduce((count, phase) => {
-      return count + (phase.tasks || []).filter(task => task.status === 'in_progress').length;
+      return (
+        count +
+        (phase.tasks || []).filter((task) => task.status === 'in_progress').length
+      );
     }, 0);
 
-    // Materiais em estoque (não aplicável aqui, placeholder)
-    const materialsInStock = 100;
+    // Materiais em estoque (número de materiais com quantidade > 0)
+    const materialsInStock = (project.materials || []).filter(
+      (material) => material.quantity > 0
+    ).length;
 
     // Próxima entrega (próximo marco)
     const nextMilestoneDate = (project.timeline || [])
-      .flatMap(phase => phase.milestones || [])
-      .map(milestone => new Date(milestone.date))
-      .filter(date => date > new Date())
+      .flatMap((phase) => phase.milestones || [])
+      .map((milestone) => new Date(milestone.date))
+      .filter((date) => date > new Date())
       .sort((a, b) => a - b)[0];
 
     return {
       completionRate,
       budget,
-      spent,
+      spent: totalSpent,
       delayedTasks,
       activeWorkers,
       materialsInStock,
@@ -81,69 +96,121 @@ export default function Reports({ data }) {
     };
   };
 
-  // Função para gerar relatórios financeiros (placeholders)
+  // Função para gerar uso de materiais com base nos dados reais
+  const generateMaterialUsage = (project) => {
+    return (project.materials || []).map((material) => {
+      return {
+        material: material.name,
+        planned: parseFloat(material.quantity) || 0,
+        used: parseFloat(material.consumedQuantity) || 0,
+        unit: material.unit || '',
+      };
+    });
+  };
+
+  // Função para gerar relatórios financeiros por mês
   const generateFinancialReports = (project) => {
-    // Placeholder para relatórios financeiros
-    return [
-      { month: 'Janeiro', planned: project.budget * 0.1, actual: project.spent * 0.1 },
-      { month: 'Fevereiro', planned: project.budget * 0.15, actual: project.spent * 0.15 },
-      { month: 'Março', planned: project.budget * 0.2, actual: project.spent * 0.2 },
+    const months = [
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro',
     ];
+
+    const monthlyData = {};
+
+    (project.materials || []).forEach((material) => {
+      const monthIndex = (material.month || 1) - 1; // Ajusta para índice do array
+      const monthName = months[monthIndex];
+
+      if (!monthlyData[monthName]) {
+        monthlyData[monthName] = { planned: 0, actual: 0 };
+      }
+
+      // Planejado: quantidade planejada * preço unitário
+      monthlyData[monthName].planned +=
+        parseFloat(material.quantity || 0) * parseFloat(material.unitPrice || 0);
+
+      // Realizado: quantidade consumida * preço unitário
+      monthlyData[monthName].actual +=
+        parseFloat(material.consumedQuantity || 0) * parseFloat(material.unitPrice || 0);
+    });
+
+    // Converte o objeto em um array para uso na tabela
+    const financialReports = Object.keys(monthlyData).map((month) => ({
+      month,
+      planned: monthlyData[month].planned,
+      actual: monthlyData[month].actual,
+    }));
+
+    return financialReports;
   };
 
   // Função para gerar atrasos de tarefas
   const generateTaskDelays = (project) => {
-    return (project.timeline || []).flatMap(phase => {
+    return (project.timeline || []).flatMap((phase) => {
       const today = new Date();
       const endDate = new Date(phase.endDate);
       const phaseProgress = parseFloat(phase.progress) || 0;
 
       if (today > endDate && phaseProgress < 100) {
         const delayDays = Math.ceil((today - endDate) / (1000 * 60 * 60 * 24));
-        return [{
-          task: phase.phase,
-          delay: delayDays,
-          impact: delayDays > 5 ? 'Alto' : delayDays > 2 ? 'Médio' : 'Baixo',
-        }];
+        return [
+          {
+            task: phase.phase,
+            delay: delayDays,
+            impact: delayDays > 5 ? 'Alto' : delayDays > 2 ? 'Médio' : 'Baixo',
+          },
+        ];
       }
       return [];
     });
   };
 
-  // Função para gerar uso de materiais (placeholders)
-  const generateMaterialUsage = (project) => {
-    // Placeholder para uso de materiais
-    return [
-      { material: 'Cimento', planned: 500, used: 480, unit: 'sacos' },
-      { material: 'Vergalhões', planned: 300, used: 290, unit: 'barras' },
-      { material: 'Tijolos', planned: 25000, used: 24800, unit: 'unidades' },
-    ];
-  };
-
   // Função para gerar métricas da força de trabalho
   const generateWorkforceMetrics = (project) => {
-    // Placeholder para força de trabalho
-    return [
-      { role: 'Pedreiros', planned: 20, actual: 18 },
-      { role: 'Eletricistas', planned: 8, actual: 8 },
-      { role: 'Ajudantes', planned: 25, actual: 22 },
-    ];
+    // Exemplo simples: contar o número de trabalhadores planejados vs atuais
+    // Você pode ajustar conforme necessário
+    const plannedWorkers = (project.workforce || []).reduce(
+      (sum, role) => sum + parseInt(role.planned || 0),
+      0
+    );
+
+    const actualWorkers = (project.workforce || []).reduce(
+      (sum, role) => sum + parseInt(role.actual || 0),
+      0
+    );
+
+    return (project.workforce || []).map((role) => ({
+      role: role.role,
+      planned: role.planned,
+      actual: role.actual,
+    }));
   };
 
   const renderProjectContent = (projectId) => {
-    const project = projects.find(p => p.id === projectId);
+    const project = projects.find((p) => p.id === projectId);
     if (!project) return null;
 
     const metrics = calculateMetrics(project);
+    const materialUsage = generateMaterialUsage(project);
     const financialReports = generateFinancialReports(project);
     const taskDelays = generateTaskDelays(project);
-    const materialUsage = generateMaterialUsage(project);
     const workforceMetrics = generateWorkforceMetrics(project);
 
     return (
       <div className="space-y-6">
         {/* Métricas Principais */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* ... [código das métricas principais permanece o mesmo] */}
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100 shadow-lg rounded-lg hover:shadow-xl transition-all duration-300">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -168,8 +235,8 @@ export default function Reports({ data }) {
                 </div>
                 <DollarSign className="h-8 w-8 text-green-500" />
               </div>
-              <Progress 
-                value={(metrics.spent / metrics.budget) * 100} 
+              <Progress
+                value={(metrics.spent / metrics.budget) * 100}
                 className="mt-2"
               />
             </CardContent>
@@ -217,15 +284,21 @@ export default function Reports({ data }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {financialReports.map((report) => {
-                  const variation = ((report.actual - report.planned) / report.planned) * 100;
+                {financialReports.map((report, index) => {
+                  const variation =
+                    report.planned > 0
+                      ? ((report.actual - report.planned) / report.planned) * 100
+                      : 0;
                   return (
-                    <TableRow key={report.month}>
+                    <TableRow key={index}>
                       <TableCell>{report.month}</TableCell>
-                      <TableCell>R$ {report.planned.toLocaleString()}</TableCell>
-                      <TableCell>R$ {report.actual.toLocaleString()}</TableCell>
-                      <TableCell className={variation > 0 ? 'text-red-600' : 'text-green-600'}>
-                        {variation > 0 ? '+' : ''}{variation.toFixed(1)}%
+                      <TableCell>R$ {report.planned.toFixed(2)}</TableCell>
+                      <TableCell>R$ {report.actual.toFixed(2)}</TableCell>
+                      <TableCell
+                        className={variation > 0 ? 'text-red-600' : 'text-green-600'}
+                      >
+                        {variation > 0 ? '+' : ''}
+                        {variation.toFixed(1)}%
                       </TableCell>
                     </TableRow>
                   );
@@ -236,6 +309,7 @@ export default function Reports({ data }) {
         </Card>
 
         {/* Atrasos de Tarefas */}
+        {/* ... [código permanece o mesmo] */}
         <Card className="bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg rounded-lg hover:shadow-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-xl text-gray-800">Atrasos em Tarefas</CardTitle>
@@ -257,11 +331,15 @@ export default function Reports({ data }) {
                       <TableCell>{delay.task}</TableCell>
                       <TableCell>{delay.delay} dias</TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          delay.impact === 'Alto' ? 'bg-red-100 text-red-800' :
-                          delay.impact === 'Médio' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            delay.impact === 'Alto'
+                              ? 'bg-red-100 text-red-800'
+                              : delay.impact === 'Médio'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}
+                        >
                           {delay.impact}
                         </span>
                       </TableCell>
@@ -276,6 +354,7 @@ export default function Reports({ data }) {
         </Card>
 
         {/* Uso de Materiais */}
+        {/* ... [código permanece o mesmo] */}
         <Card className="bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg rounded-lg hover:shadow-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-xl text-gray-800">Consumo de Materiais</CardTitle>
@@ -293,15 +372,24 @@ export default function Reports({ data }) {
               </TableHeader>
               <TableBody>
                 {materialUsage.map((material, index) => {
-                  const efficiency = ((material.used / material.planned) * 100).toFixed(1);
+                  const efficiency =
+                    material.planned > 0
+                      ? ((material.used / material.planned) * 100).toFixed(1)
+                      : '0';
                   return (
                     <TableRow key={index}>
                       <TableCell>{material.material}</TableCell>
-                      <TableCell>{material.planned} {material.unit}</TableCell>
-                      <TableCell>{material.used} {material.unit}</TableCell>
-                      <TableCell className={
-                        Number(efficiency) > 100 ? 'text-red-600' : 'text-green-600'
-                      }>
+                      <TableCell>
+                        {material.planned} {material.unit}
+                      </TableCell>
+                      <TableCell>
+                        {material.used} {material.unit}
+                      </TableCell>
+                      <TableCell
+                        className={
+                          Number(efficiency) > 100 ? 'text-red-600' : 'text-green-600'
+                        }
+                      >
                         {efficiency}%
                       </TableCell>
                     </TableRow>
@@ -313,42 +401,53 @@ export default function Reports({ data }) {
         </Card>
 
         {/* Métricas da Força de Trabalho */}
+        {/* ... [código permanece o mesmo, ajuste conforme necessário] */}
         <Card className="bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg rounded-lg hover:shadow-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-xl text-gray-800">Força de Trabalho</CardTitle>
             <Users className="h-6 w-6 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Função</TableHead>
-                  <TableHead>Planejado</TableHead>
-                  <TableHead>Atual</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {workforceMetrics.map((metric, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{metric.role}</TableCell>
-                    <TableCell>{metric.planned}</TableCell>
-                    <TableCell>{metric.actual}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        metric.actual < metric.planned ? 'bg-red-100 text-red-800' :
-                        metric.actual === metric.planned ? 'bg-green-100 text-green-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        {metric.actual < metric.planned ? 'Abaixo' :
-                         metric.actual === metric.planned ? 'Adequado' :
-                         'Acima'}
-                      </span>
-                    </TableCell>
+            {workforceMetrics.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Função</TableHead>
+                    <TableHead>Planejado</TableHead>
+                    <TableHead>Atual</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {workforceMetrics.map((metric, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{metric.role}</TableCell>
+                      <TableCell>{metric.planned}</TableCell>
+                      <TableCell>{metric.actual}</TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            metric.actual < metric.planned
+                              ? 'bg-red-100 text-red-800'
+                              : metric.actual === metric.planned
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {metric.actual < metric.planned
+                            ? 'Abaixo'
+                            : metric.actual === metric.planned
+                            ? 'Adequado'
+                            : 'Acima'}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-center text-gray-500">Nenhuma informação disponível.</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -356,9 +455,20 @@ export default function Reports({ data }) {
   };
 
   const renderOverview = () => {
-    // Métricas consolidadas
-    const totalInvestment = projects.reduce((sum, p) => sum + (parseFloat(p.budget) || 0), 0);
-    const totalExecuted = projects.reduce((sum, p) => sum + (parseFloat(p.spent) || 0), 0);
+    // Ajuste as métricas consolidadas para refletir os dados reais
+    const totalInvestment = projects.reduce(
+      (sum, p) => sum + (parseFloat(p.budget) || 0),
+      0
+    );
+    const totalExecuted = projects.reduce((sum, p) => {
+      const materialsSpent = (p.materials || []).reduce(
+        (sumMat, material) =>
+          sumMat +
+          parseFloat(material.consumedQuantity || 0) * parseFloat(material.unitPrice || 0),
+        0
+      );
+      return sum + (parseFloat(p.spent) || 0) + materialsSpent;
+    }, 0);
     const totalWorkforce = projects.reduce((sum, p) => {
       const metrics = calculateMetrics(p);
       return sum + metrics.activeWorkers;
@@ -385,7 +495,9 @@ export default function Reports({ data }) {
                         <p className="text-sm text-gray-500">Conclusão</p>
                         <div className="flex items-center">
                           <TrendingUp className="h-4 w-4 text-blue-500 mr-2" />
-                          <p className="text-lg font-semibold">{metrics.completionRate}%</p>
+                          <p className="text-lg font-semibold">
+                            {metrics.completionRate}%
+                          </p>
                         </div>
                         <Progress value={metrics.completionRate} className="mt-2" />
                       </div>
@@ -397,8 +509,8 @@ export default function Reports({ data }) {
                             R$ {metrics.spent.toLocaleString()}
                           </p>
                         </div>
-                        <Progress 
-                          value={(metrics.spent / metrics.budget) * 100} 
+                        <Progress
+                          value={(metrics.spent / metrics.budget) * 100}
                           className="mt-2"
                         />
                       </div>
@@ -471,9 +583,7 @@ export default function Reports({ data }) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Força de Trabalho Total</p>
-                  <p className="text-2xl font-bold">
-                    {totalWorkforce}
-                  </p>
+                  <p className="text-2xl font-bold">{totalWorkforce}</p>
                 </div>
                 <Users className="h-8 w-8 text-purple-500" />
               </div>
@@ -488,20 +598,27 @@ export default function Reports({ data }) {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {projects.map(project => {
+              {projects.map((project) => {
                 const taskDelays = generateTaskDelays(project);
-                return taskDelays.length > 0 && (
-                  <div key={project.id} className="p-4 bg-amber-50 rounded-lg">
-                    <h3 className="font-semibold text-gray-800 mb-2">{project.name}</h3>
-                    <div className="space-y-2">
-                      {taskDelays.map((delay, index) => (
-                        <div key={index} className="flex items-center text-sm text-gray-600">
-                          <AlertTriangle className="h-4 w-4 text-amber-500 mr-2" />
-                          <span>{delay.task} - {delay.delay} dias de atraso</span>
-                        </div>
-                      ))}
+                return (
+                  taskDelays.length > 0 && (
+                    <div key={project.id} className="p-4 bg-amber-50 rounded-lg">
+                      <h3 className="font-semibold text-gray-800 mb-2">{project.name}</h3>
+                      <div className="space-y-2">
+                        {taskDelays.map((delay, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center text-sm text-gray-600"
+                          >
+                            <AlertTriangle className="h-4 w-4 text-amber-500 mr-2" />
+                            <span>
+                              {delay.task} - {delay.delay} dias de atraso
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )
                 );
               })}
             </div>
@@ -546,7 +663,7 @@ export default function Reports({ data }) {
       </div>
 
       {/* Conteúdo da Aba Selecionada */}
-      {activeProject === 'overview' 
+      {activeProject === 'overview'
         ? renderOverview()
         : renderProjectContent(activeProject)}
     </>
