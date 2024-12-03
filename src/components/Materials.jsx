@@ -253,11 +253,11 @@ export default function Materials({ data }) {
         <TableRow>
           <TableHead>Material</TableHead>
           <TableHead>Categoria</TableHead>
-          <TableHead>Quantidade</TableHead>
+          <TableHead>Qtd. Planejada</TableHead>
           <TableHead>Unidade</TableHead>
           <TableHead>Preço Unit.</TableHead>
           <TableHead>Total</TableHead>
-          <TableHead>Quantidade Consumida</TableHead>
+          <TableHead>Qtd. Consumida</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Ações</TableHead>
         </TableRow>
