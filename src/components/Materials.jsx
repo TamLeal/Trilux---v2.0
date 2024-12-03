@@ -451,12 +451,14 @@ export default function Materials({ data }) {
       0
     );
 
-    // Calcula o total planejado para materiais neste projeto
-    const totalPlanejado = (project.materials || []).reduce(
-      (sum, material) =>
-        sum + parseFloat(material.quantity || 0) * parseFloat(material.unitPrice || 0),
-      0
-    );
+    // Usa o orçamento definido ou calcula o total planejado
+    const totalPlanejado =
+      project.materialsBudget ||
+      (project.materials || []).reduce(
+        (sum, material) =>
+          sum + parseFloat(material.quantity || 0) * parseFloat(material.unitPrice || 0),
+        0
+      );
 
     // Calcula o percentual utilizado
     const percentualUtilizado =
@@ -487,7 +489,9 @@ export default function Materials({ data }) {
                 </div>
                 <div className="text-sm text-gray-600">
                   Orçamento Total Planejado: R${' '}
-                  {totalPlanejado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  {totalPlanejado.toLocaleString('pt-BR', {
+                    minimumFractionDigits: 2,
+                  })}
                 </div>
               </div>
             </CardContent>
@@ -669,16 +673,16 @@ export default function Materials({ data }) {
       );
     }, 0);
 
-    // Total planejado é a soma dos planejamentos de cada projeto
+    // Total planejado é a soma dos orçamentos de materiais ou planejamentos de cada projeto
     const totalPlanejado = projects.reduce((total, project) => {
-      return (
-        total +
+      const projectTotalPlanejado =
+        project.materialsBudget ||
         (project.materials || []).reduce(
           (sum, material) =>
             sum + parseFloat(material.quantity || 0) * parseFloat(material.unitPrice || 0),
           0
-        )
-      );
+        );
+      return total + projectTotalPlanejado;
     }, 0);
 
     const orcamentoDisponivel = totalPlanejado - totalGasto;
@@ -699,12 +703,14 @@ export default function Materials({ data }) {
                   parseFloat(material.unitPrice || 0),
               0
             );
-            const projectTotalPlanejado = (project.materials || []).reduce(
-              (sum, material) =>
-                sum +
-                parseFloat(material.quantity || 0) * parseFloat(material.unitPrice || 0),
-              0
-            );
+            const projectTotalPlanejado =
+              project.materialsBudget ||
+              (project.materials || []).reduce(
+                (sum, material) =>
+                  sum +
+                  parseFloat(material.quantity || 0) * parseFloat(material.unitPrice || 0),
+                0
+              );
             const orcamentoUtilizado =
               projectTotalPlanejado > 0
                 ? (projectTotalGasto / projectTotalPlanejado) * 100
@@ -819,7 +825,9 @@ export default function Materials({ data }) {
                       <TableCell>{material.category}</TableCell>
                       <TableCell>{material.quantity}</TableCell>
                       <TableCell>{material.unit}</TableCell>
-                      <TableCell>R$ {parseFloat(material.unitPrice).toFixed(2)}</TableCell>
+                      <TableCell>
+                        R$ {parseFloat(material.unitPrice).toFixed(2)}
+                      </TableCell>
                       <TableCell>
                         R${' '}
                         {(
